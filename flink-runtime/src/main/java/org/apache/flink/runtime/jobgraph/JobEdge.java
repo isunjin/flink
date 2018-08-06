@@ -50,6 +50,9 @@ public class JobEdge implements java.io.Serializable {
 
 	/** Optional description of the caching inside an operator, to be displayed in the JSON plan */
 	private String operatorLevelCachingDescription;
+
+	/** Optional edgeManagerName for dynamic behavior*/
+	private String edgeManagerName;
 	
 	/**
 	 * Constructs a new job edge, that connects an intermediate result to a consumer task.
@@ -125,6 +128,11 @@ public class JobEdge implements java.io.Serializable {
 	
 	public boolean isIdReference() {
 		return this.source == null;
+	}
+
+	/** get edge manager */
+	public String getEdgeManagerName() {
+		return this.edgeManagerName;
 	}
 
 	// --------------------------------------------------------------------------------------------

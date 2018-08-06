@@ -454,6 +454,18 @@ public class JobVertex implements java.io.Serializable {
 		return result;
 	}
 
+	//---------------------------------------------------------------------------------------------
+	//  dynamic graph
+	//---------------------------------------------------------------------------------------------
+
+	public void disconnectDataSet(JobEdge edge){
+
+	}
+
+	public void connectJobEdge(JobEdge edge){
+
+	}
+
 	public JobEdge connectDataSetAsInput(IntermediateDataSet dataSet, DistributionPattern distPattern) {
 		JobEdge edge = new JobEdge(dataSet, this, distPattern);
 		this.inputs.add(edge);
@@ -474,9 +486,10 @@ public class JobVertex implements java.io.Serializable {
 		return edge;
 	}
 
-	public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
+	public JobEdge connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
 		JobEdge edge = new JobEdge(dataSetId, this, distPattern);
 		this.inputs.add(edge);
+		return edge;
 	}
 
 	// --------------------------------------------------------------------------------------------

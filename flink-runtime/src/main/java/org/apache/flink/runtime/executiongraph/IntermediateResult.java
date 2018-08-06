@@ -18,11 +18,17 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.executiongraph.dynamic.EdgeManager;
+import org.apache.flink.runtime.executiongraph.dynamic.EdgeManagerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
+import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -33,6 +39,8 @@ public class IntermediateResult {
 	private final IntermediateDataSetID id;
 
 	private final ExecutionJobVertex producer;
+
+	private List<EdgeManager> edgeManagers;
 
 	private final IntermediateResultPartition[] partitions;
 
@@ -80,6 +88,9 @@ public class IntermediateResult {
 
 		// The runtime type for this produced result
 		this.resultType = checkNotNull(resultType);
+
+		// for dynamic
+		this.edgeManagers = new ArrayList<>();
 	}
 
 	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -138,9 +149,14 @@ public class IntermediateResult {
 		return resultType;
 	}
 
-	public int registerConsumer() {
+	//---------------------------------------------------------------------------------------------
+	//  dynamic graph
+	//---------------------------------------------------------------------------------------------
+	public int registerConsumer(JobEdge edge) {
 		final int index = numConsumers;
 		numConsumers++;
+
+		this.edgeManagers.add(EdgeManagerFactory.getEdgeManager(edge.getEdgeManagerName()));
 
 		for (IntermediateResultPartition p : partitions) {
 			if (p.addConsumerGroup() != index) {
@@ -148,6 +164,15 @@ public class IntermediateResult {
 			}
 		}
 		return index;
+	}
+
+	public void deregisterConsumer(JobEdge edge){
+
+	}
+
+	public EdgeManager getEdgeManager(int index){
+		Preconditions.checkArgument(index >=0 && index < numConsumers);
+		return this.edgeManagers.get(index);
 	}
 
 	public int getConnectionIndex() {
@@ -174,5 +199,14 @@ public class IntermediateResult {
 	@Override
 	public String toString() {
 		return "IntermediateResult " + id.toString();
+	}
+
+	/** for dynamic */
+	public void onPartitionProduced(IntermediateResultPartition partition) {
+		for (EdgeManager edgeManager : this.edgeManagers) {
+			if (edgeManager != null) {
+				edgeManager.onPartitionProduced(partition);
+			}
+		}
 	}
 }

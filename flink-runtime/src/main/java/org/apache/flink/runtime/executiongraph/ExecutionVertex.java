@@ -334,111 +334,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return this.jobVertex.getGraph();
 	}
 
+	public void setExecutionEdges(int input, ExecutionEdge[] edges){
+		this.inputEdges[input] = edges;
+	}
+
 	public Map<IntermediateResultPartitionID, IntermediateResultPartition> getProducedPartitions() {
 		return resultPartitions;
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Graph building
-	// --------------------------------------------------------------------------------------------
-
-	public void connectSource(int inputNumber, IntermediateResult source, JobEdge edge, int consumerNumber) {
-
-		final DistributionPattern pattern = edge.getDistributionPattern();
-		final IntermediateResultPartition[] sourcePartitions = source.getPartitions();
-
-		ExecutionEdge[] edges;
-
-		switch (pattern) {
-			case POINTWISE:
-				edges = connectPointwise(sourcePartitions, inputNumber);
-				break;
-
-			case ALL_TO_ALL:
-				edges = connectAllToAll(sourcePartitions, inputNumber);
-				break;
-
-			default:
-				throw new RuntimeException("Unrecognized distribution pattern.");
-
-		}
-
-		this.inputEdges[inputNumber] = edges;
-
-		// add the consumers to the source
-		// for now (until the receiver initiated handshake is in place), we need to register the
-		// edges as the execution graph
-		for (ExecutionEdge ee : edges) {
-			ee.getSource().addConsumer(ee, consumerNumber);
-		}
-	}
-
-	private ExecutionEdge[] connectAllToAll(IntermediateResultPartition[] sourcePartitions, int inputNumber) {
-		ExecutionEdge[] edges = new ExecutionEdge[sourcePartitions.length];
-
-		for (int i = 0; i < sourcePartitions.length; i++) {
-			IntermediateResultPartition irp = sourcePartitions[i];
-			edges[i] = new ExecutionEdge(irp, this, inputNumber);
-		}
-
-		return edges;
-	}
-
-	private ExecutionEdge[] connectPointwise(IntermediateResultPartition[] sourcePartitions, int inputNumber) {
-		final int numSources = sourcePartitions.length;
-		final int parallelism = getTotalNumberOfParallelSubtasks();
-
-		// simple case same number of sources as targets
-		if (numSources == parallelism) {
-			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[subTaskIndex], this, inputNumber) };
-		}
-		else if (numSources < parallelism) {
-
-			int sourcePartition;
-
-			// check if the pattern is regular or irregular
-			// we use int arithmetics for regular, and floating point with rounding for irregular
-			if (parallelism % numSources == 0) {
-				// same number of targets per source
-				int factor = parallelism / numSources;
-				sourcePartition = subTaskIndex / factor;
-			}
-			else {
-				// different number of targets per source
-				float factor = ((float) parallelism) / numSources;
-				sourcePartition = (int) (subTaskIndex / factor);
-			}
-
-			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[sourcePartition], this, inputNumber) };
-		}
-		else {
-			if (numSources % parallelism == 0) {
-				// same number of targets per source
-				int factor = numSources / parallelism;
-				int startIndex = subTaskIndex * factor;
-
-				ExecutionEdge[] edges = new ExecutionEdge[factor];
-				for (int i = 0; i < factor; i++) {
-					edges[i] = new ExecutionEdge(sourcePartitions[startIndex + i], this, inputNumber);
-				}
-				return edges;
-			}
-			else {
-				float factor = ((float) numSources) / parallelism;
-
-				int start = (int) (subTaskIndex * factor);
-				int end = (subTaskIndex == getTotalNumberOfParallelSubtasks() - 1) ?
-						sourcePartitions.length :
-						(int) ((subTaskIndex + 1) * factor);
-
-				ExecutionEdge[] edges = new ExecutionEdge[end - start];
-				for (int i = 0; i < edges.length; i++) {
-					edges[i] = new ExecutionEdge(sourcePartitions[start + i], this, inputNumber);
-				}
-
-				return edges;
-			}
-		}
 	}
 
 	/**

@@ -84,7 +84,7 @@ public class IntermediateResultPartition {
 		return pos;
 	}
 
-	void addConsumer(ExecutionEdge edge, int consumerNumber) {
+	public void addConsumer(ExecutionEdge edge, int consumerNumber) {
 		consumers.get(consumerNumber).add(edge);
 	}
 
@@ -93,6 +93,8 @@ public class IntermediateResultPartition {
 		if (!getResultType().isBlocking()) {
 			throw new IllegalStateException("Tried to mark a non-blocking result partition as finished");
 		}
+
+		this.totalResult.onPartitionProduced(this);
 
 		final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
 

@@ -72,10 +72,14 @@ public class IntermediateDataSet implements java.io.Serializable {
 		return resultType;
 	}
 	
-	// --------------------------------------------------------------------------------------------
+	// ------- dynamic graph-------------------------------------------------------------------------------------
 	
 	public void addConsumer(JobEdge edge) {
 		this.consumers.add(edge);
+	}
+
+	public void removeComsumer(JobEdge edge){
+
 	}
 	
 	// --------------------------------------------------------------------------------------------

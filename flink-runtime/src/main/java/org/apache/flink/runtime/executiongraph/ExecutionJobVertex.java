@@ -36,6 +36,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.dynamic.EdgeManager;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -109,6 +110,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	private final IntermediateResult[] producedDataSets;
 
 	private final List<IntermediateResult> inputs;
+
+	private final List<EdgeManager> edgeManagers;
 
 	private final int parallelism;
 
@@ -197,6 +200,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		this.userDefinedOperatorIds = Collections.unmodifiableList(jobVertex.getUserDefinedOperatorIDs());
 
 		this.inputs = new ArrayList<>(jobVertex.getInputs().size());
+		this.edgeManagers = new ArrayList<>(jobVertex.getInputs().size());
 
 		// take the sharing group
 		this.slotSharingGroup = jobVertex.getSlotSharingGroup();
@@ -434,36 +438,58 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		
 		for (int num = 0; num < inputs.size(); num++) {
 			JobEdge edge = inputs.get(num);
-			
+
 			if (LOG.isDebugEnabled()) {
 				if (edge.getSource() == null) {
-					LOG.debug(String.format("Connecting input %d of vertex %s (%s) to intermediate result referenced via ID %s.", 
+					LOG.debug(String.format("Connecting input %d of vertex %s (%s) to intermediate result referenced via ID %s.",
 							num, jobVertex.getID(), jobVertex.getName(), edge.getSourceId()));
 				} else {
 					LOG.debug(String.format("Connecting input %d of vertex %s (%s) to intermediate result referenced via predecessor %s (%s).",
 							num, jobVertex.getID(), jobVertex.getName(), edge.getSource().getProducer().getID(), edge.getSource().getProducer().getName()));
 				}
 			}
-			
-			// fetch the intermediate result via ID. if it does not exist, then it either has not been created, or the order
-			// in which this method is called for the job vertices is not a topological order
-			IntermediateResult ires = intermediateDataSets.get(edge.getSourceId());
-			if (ires == null) {
-				throw new JobException("Cannot connect this job graph to the previous graph. No previous intermediate result found for ID "
-						+ edge.getSourceId());
-			}
-			
-			this.inputs.add(ires);
-			
-			int consumerIndex = ires.registerConsumer();
-			
-			for (int i = 0; i < parallelism; i++) {
-				ExecutionVertex ev = taskVertices[i];
-				ev.connectSource(num, ires, edge, consumerIndex);
-			}
+
+			this.connectPredecessor(intermediateDataSets, edge, num);
 		}
 	}
-	
+
+	private void connectPredecessor(Map<IntermediateDataSetID, IntermediateResult> intermediateDataSets, JobEdge edge, int num) throws JobException{
+		// fetch the intermediate result via ID. if it does not exist, then it either has not been created, or the order
+		// in which this method is called for the job vertices is not a topological order
+		IntermediateResult ires = intermediateDataSets.get(edge.getSourceId());
+		if (ires == null) {
+			throw new JobException("Cannot connect this job graph to the previous graph. No previous intermediate result found for ID "
+				+ edge.getSourceId());
+		}
+
+		this.inputs.add(ires);
+
+		int consumerIndex = ires.registerConsumer(edge);
+
+		EdgeManager edgeManager = ires.getEdgeManager(consumerIndex);
+		this.edgeManagers.set(num, edgeManager);
+
+		for (int i = 0; i < parallelism; i++) {
+			ExecutionVertex ev = taskVertices[i];
+			edgeManager.connectSource(ev, num, consumerIndex);
+		}
+	}
+
+	public void connectPredecessor(Map<IntermediateDataSetID, IntermediateResult> intermediateDataSets, JobEdge edge) throws JobException{
+		int inputNum = this.jobVertex.getInputs().indexOf(edge);
+
+		if(inputNum == -1) {
+			throw new JobException("Cannot connect this job graph to the previous graph. cannot find the job edge "
+				+ edge.getSourceId());
+		}
+
+		this.connectPredecessor(intermediateDataSets, edge, inputNum);
+	}
+
+	public void disconnectPredecessor(JobEdge edge){
+
+	}
+
 	//---------------------------------------------------------------------------------------------
 	//  Actions
 	//---------------------------------------------------------------------------------------------
