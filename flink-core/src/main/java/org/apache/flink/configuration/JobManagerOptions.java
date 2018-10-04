@@ -108,7 +108,7 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
-			.defaultValue("full")
+			.defaultValue("region")
 			.withDescription(Description.builder()
 				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")

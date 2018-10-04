@@ -19,11 +19,14 @@
 package org.apache.flink.examples.java.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.util.Collector;
 
 /**
@@ -55,6 +58,7 @@ public class WordCount {
 
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
@@ -80,7 +84,7 @@ public class WordCount {
 
 		// emit result
 		if (params.has("output")) {
-			counts.writeAsCsv(params.get("output"), "\n", " ");
+			counts.writeAsCsv(params.get("output"), "\n", " ", FileSystem.WriteMode.OVERWRITE);
 			// execute program
 			env.execute("WordCount Example");
 		} else {
@@ -102,7 +106,7 @@ public class WordCount {
 	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 
 		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
 
@@ -110,6 +114,7 @@ public class WordCount {
 			for (String token : tokens) {
 				if (token.length() > 0) {
 					out.collect(new Tuple2<>(token, 1));
+					throw new Exception("error");
 				}
 			}
 		}
