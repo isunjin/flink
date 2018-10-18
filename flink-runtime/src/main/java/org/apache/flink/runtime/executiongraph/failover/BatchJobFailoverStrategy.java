@@ -19,16 +19,19 @@
 package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.throwable.ThrowableClassifier;
-import org.apache.flink.runtime.throwable.ThrowableType;
+import org.apache.flink.runtime.throwable.IEnvironmentException;
+import org.apache.flink.runtime.throwable.INonRecoverableException;
+import org.apache.flink.runtime.throwable.IPartitionDataMissingException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 
 /**
@@ -72,28 +75,15 @@ public class BatchJobFailoverStrategy extends RestartPipelinedRegionStrategy {
 	}
 
 	// ------------------------------------------------------------------------
+	private boolean tryFailRegion(Execution taskExecution, Throwable cause, boolean restart){
 
-	@Override
-	public void onTaskFailure(Execution taskExecution, Throwable cause) {
-
-		ThrowableType type = ThrowableClassifier.getThrowableType(cause);
-
-		//should fail the job, as there is a non recoverable failure happens
-		if(type == ThrowableType.NonRecoverableError){
-			LOG.info("Task {} (#{}) cannot recover from this failure, will fail the job: {}",
-				taskExecution.getVertex().getTaskNameWithSubtaskIndex(), taskExecution.getAttemptNumber(), cause.toString());
-			executionGraph.failGlobal(cause);
-			return;
-		}
-
-		// TODO:if its a PartitionMissingError, apply revocation logic
-		// TODO: if its a EnvironmentError}, apply blackList logic
 		final ExecutionVertex ev = taskExecution.getVertex();
 		final FailoverRegion failoverRegion = vertexToRegion.get(ev);
 
 		if (failoverRegion == null) {
 			executionGraph.failGlobal(new FlinkException(
 				"Can not find a failover region for the execution " + ev.getTaskNameWithSubtaskIndex(), cause));
+			return false;
 		}
 		else {
 			// Other failures are recoverable, lets try to restart the task
@@ -101,7 +91,7 @@ public class BatchJobFailoverStrategy extends RestartPipelinedRegionStrategy {
 			if(failoverRegion.getFailCount() >= this.failLimit){
 				executionGraph.failGlobal(new FlinkException(
 					"Max fail recovering attempt achieved, region failed " + this.failLimit +" times", cause));
-				return;
+				return false;
 			}
 
 			LOG.info("Recovering task failure for {} #{} ({}) via restart of failover region",
@@ -109,7 +99,54 @@ public class BatchJobFailoverStrategy extends RestartPipelinedRegionStrategy {
 				taskExecution.getAttemptNumber(),
 				taskExecution.getAttemptId());
 
-			failoverRegion.onExecutionFail(taskExecution, cause);
+			failoverRegion.onExecutionFail(taskExecution.getGlobalModVersion(), cause, restart);
+		}
+
+		return true;
+	}
+
+	@Override
+	public void onTaskFailure(Execution taskExecution, Throwable cause) {
+
+		//should fail the job, as there is a non recoverable failure happens
+		if(cause instanceof INonRecoverableException){
+			LOG.info("Task {} (#{}) cannot recover from this failure, will fail the job: {}",
+				taskExecution.getVertex().getTaskNameWithSubtaskIndex(), taskExecution.getAttemptNumber(), cause.toString());
+			executionGraph.failGlobal(cause);
+			return;
+
+		} else if(cause instanceof IPartitionDataMissingException){
+
+			IPartitionDataMissingException dataMissingException = (IPartitionDataMissingException)cause;
+
+			//instead of fail current region, fail its parent region
+			//do revocation
+			List<ExecutionAttemptID> producerIds = dataMissingException.getMissingPartitionProducers();
+			for(ExecutionAttemptID id : producerIds){
+				//			R1
+				//		/		\
+				//	   R2		  R3
+				// if R2 fail due to R1, it will call failProducerRegion at the same time, R3 will fail with the same reason,
+				// and call failProducerRegion again, this might trigger duplicate fail, we need to eliminate it
+				// to do that, we just need to ensure the producer executionAttemptedId is in registered executions.
+				Execution execution = this.executionGraph.getRegisteredExecutions().get(id);
+				if(execution == null){
+					continue;
+				}
+
+				if(!tryFailRegion(execution, cause, true)){
+					break;
+				}
+			}
+
+			//fail current region
+			tryFailRegion(taskExecution, cause, false);
+		}
+		else {
+			if(cause instanceof IEnvironmentException){
+				// TODO: black list
+			}
+			tryFailRegion(taskExecution, cause, true);
 		}
 	}
 

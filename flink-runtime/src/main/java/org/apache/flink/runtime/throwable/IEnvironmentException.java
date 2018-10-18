@@ -18,22 +18,9 @@
 
 package org.apache.flink.runtime.throwable;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
 /**
- * Annotation to classify subclasses of {@link Throwable} into categories w.r.t. recovery.
- */
-@Inherited
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface ThrowableAnnotation {
-
-	/**
-	 * Returns the type if the {@link Throwable}.
-	 */
-	ThrowableType value() default ThrowableType.RecoverableError;
+ * This indicates an error related to the running environment, such as hardware error, service issue, in which
+ * case we should consider blacklisting the machine.
+ * */
+public interface IEnvironmentException {
 }

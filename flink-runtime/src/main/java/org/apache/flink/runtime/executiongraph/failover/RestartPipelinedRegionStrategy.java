@@ -122,7 +122,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 					taskExecution.getAttemptNumber(),
 					taskExecution.getAttemptId());
 
-			failoverRegion.onExecutionFail(taskExecution, cause);
+			failoverRegion.onExecutionFail(taskExecution.getGlobalModVersion(), cause, true);
 		}
 	}
 

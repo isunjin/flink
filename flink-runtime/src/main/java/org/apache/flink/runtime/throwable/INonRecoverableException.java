@@ -19,18 +19,8 @@
 package org.apache.flink.runtime.throwable;
 
 /**
- * Helper class, given a exception do the classification.
+ * This indicates error that would not succeed even with retry, such as DivideZeroException.
+ * No recovery attempt should happen for such an error. Instead, the job should fail immediately.
  */
-public class ThrowableClassifier {
-
-	/**
-	 * Classify the exceptions by extracting the {@link ThrowableType} from a potential {@link ThrowableAnnotation}.
-	 *
-	 * @param cause the {@link Throwable} to classify.
-	 * @return The extracted {@link ThrowableType} or ThrowableType.RecoverableError if there is no such annotation.
-	 */
-	public static ThrowableType getThrowableType(Throwable cause) {
-		final ThrowableAnnotation annotation = cause.getClass().getAnnotation(ThrowableAnnotation.class);
-		return annotation == null ? ThrowableType.RecoverableError : annotation.value();
-	}
+public interface INonRecoverableException {
 }

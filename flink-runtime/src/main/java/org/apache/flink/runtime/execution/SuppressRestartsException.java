@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.execution;
 
-import org.apache.flink.runtime.throwable.ThrowableAnnotation;
-import org.apache.flink.runtime.throwable.ThrowableType;
+import org.apache.flink.runtime.throwable.INonRecoverableException;
 
 /**
  * Exception thrown in order to suppress job restarts.
@@ -28,8 +27,7 @@ import org.apache.flink.runtime.throwable.ThrowableType;
  * job restarts. The JobManager will <strong>not</strong> restart a job, which
  * fails with this Exception.
  */
-@ThrowableAnnotation(ThrowableType.NonRecoverableError)
-public class SuppressRestartsException extends RuntimeException {
+public class SuppressRestartsException extends RuntimeException implements INonRecoverableException {
 
 	private static final long serialVersionUID = 221873676920848349L;
 

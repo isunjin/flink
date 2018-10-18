@@ -18,30 +18,17 @@
 
 package org.apache.flink.runtime.throwable;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+
+import java.util.List;
+
 /**
- * Enum for the classification of {@link Throwable} objects into failure/recovery classes.
- */
-public enum ThrowableType {
+ * Data consumption error, which indicates that we should revoke the producer.
+ * */
+public interface IPartitionDataMissingException {
 
-	/**
-	 * This indicates error that would not succeed even with retry, such as DivideZeroException.
-	 * No recovery attempt should happen for such an error. Instead, the job should fail immediately.
-	 */
-	NonRecoverableError,
-
-	/**
-	 * Data consumption error, which indicates that we should revoke the producer.
-	 * */
-	PartitionDataMissingError,
-
-	/**
-	 * This indicates an error related to the  running environment, such as hardware error, service issue, in which
-	 * case we should consider blacklisting the machine.
-	 * */
-	EnvironmentError,
-
-	/**
-	 * This indicates a problem that is recoverable.
-	 * */
-	RecoverableError
+	/*
+	* gets all producer attemptIds for the missing partitions
+	* **/
+	List<ExecutionAttemptID> getMissingPartitionProducers();
 }

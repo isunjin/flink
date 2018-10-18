@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,14 +83,14 @@ public class FailoverRegion {
 		LOG.debug("Created failover region {} with vertices: {}", id, connectedExecutions);
 	}
 
-	public void onExecutionFail(Execution taskExecution, Throwable cause) {
+	public void onExecutionFail(long globalModVersionOfFailover, Throwable cause, boolean restart) {
 		// TODO: check if need to failover the preceding region
 		if (!this.canRestartRegion) {
 			// delegate the failure to a global fail that will check the restart strategy and not restart
 			executionGraph.failGlobal(cause);
 		}
 		else {
-			cancel(taskExecution.getGlobalModVersion());
+			cancel(globalModVersionOfFailover, restart);
 			failCount.inc();
 		}
 	}
@@ -101,12 +99,12 @@ public class FailoverRegion {
 		return failCount.getCount();
 	}
 
-	private void allVerticesInTerminalState(long globalModVersionOfFailover) {
+	private void allVerticesInTerminalState(long globalModVersionOfFailover, boolean restart) {
 		while (true) {
 			JobStatus curStatus = this.state;
 			if (curStatus.equals(JobStatus.CANCELLING)) {
 				if (transitionState(curStatus, JobStatus.CANCELED)) {
-					reset(globalModVersionOfFailover);
+					reset(globalModVersionOfFailover, restart);
 					break;
 				}
 			}
@@ -136,10 +134,10 @@ public class FailoverRegion {
 		else {
 			JobStatus curStatus = this.state;
 			if (curStatus.equals(JobStatus.RUNNING)) {
-				cancel(globalModVersionOfFailover);
+				cancel(globalModVersionOfFailover, true);
 			}
 			else if (curStatus.equals(JobStatus.CANCELED)) {
-				reset(globalModVersionOfFailover);
+				reset(globalModVersionOfFailover, true);
 			}
 			else {
 				LOG.info("FailoverRegion {} is {} when notified to failover.", id, state);
@@ -148,7 +146,7 @@ public class FailoverRegion {
 	}
 
 	// cancel all executions in this sub graph
-	private void cancel(final long globalModVersionOfFailover) {
+	private void cancel(final long globalModVersionOfFailover, boolean restart) {
 		while (true) {
 			JobStatus curStatus = this.state;
 			if (curStatus.equals(JobStatus.RUNNING)) {
@@ -164,7 +162,7 @@ public class FailoverRegion {
 
 					final FutureUtils.ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
 					allTerminal.thenAcceptAsync(
-						(Void value) -> allVerticesInTerminalState(globalModVersionOfFailover),
+						(Void value) -> allVerticesInTerminalState(globalModVersionOfFailover, restart),
 						executor);
 
 					break;
@@ -178,7 +176,7 @@ public class FailoverRegion {
 	}
 
 	// reset all executions in this sub graph
-	private void reset(long globalModVersionOfFailover) {
+	private void reset(long globalModVersionOfFailover, boolean restart) {
 		try {
 			// reset all connected ExecutionVertexes
 			final Collection<CoLocationGroup> colGroups = new HashSet<>();
@@ -193,6 +191,11 @@ public class FailoverRegion {
 
 				ev.resetForNewExecution(restartTimestamp, globalModVersionOfFailover);
 			}
+
+			if(!restart){
+				return;
+			}
+
 			if (transitionState(JobStatus.CANCELED, JobStatus.CREATED)) {
 				restart(globalModVersionOfFailover);
 			}

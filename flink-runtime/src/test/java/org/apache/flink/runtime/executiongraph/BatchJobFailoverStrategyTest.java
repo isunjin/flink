@@ -37,9 +37,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.throwable.IPartitionDataMissingException;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionState;
@@ -163,6 +168,47 @@ public class BatchJobFailoverStrategyTest extends TestLogger {
 		waitUntilJobStatus(graph, JobStatus.FAILED, 3000);
 	}
 
+	@Test
+	public void testRevocation() throws Exception {
+		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ExecutionGraph graph = createSampleExampleGraph(executor);
+
+
+		BatchJobFailoverStrategy strategy = (BatchJobFailoverStrategy) graph.getFailoverStrategy();
+
+		Iterator<ExecutionJobVertex> iterators = graph.getVerticesTopologically().iterator();
+		iterators.next();
+		final ExecutionJobVertex ejv2 = iterators.next();
+		final ExecutionVertex vertex2 = ejv2.getTaskVertices()[0];
+		ExecutionJobVertex ejv3 = iterators.next();
+		final ExecutionVertex vertex3 = ejv3.getTaskVertices()[0];
+
+		graph.scheduleForExecution();
+		assertEquals(JobStatus.RUNNING, graph.getState());
+		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(vertex2).getState());
+
+		//fail vertex3, both vertex3 and vertex2 are failing
+		vertex3.getCurrentExecutionAttempt().fail(new PartitionDataMissingException(new ArrayList<>(Arrays.asList(vertex2.getCurrentExecutionAttempt().getAttemptId()))));
+		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(vertex2).getState());
+
+		//vertex 3 cancelling but not restart, because it will fail till vertex2 succeed
+		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(vertex3).getState());
+
+		assertEquals(2, executor.numQueuedRunnables());
+		executor.trigger();
+		executor.trigger();
+
+		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(vertex2).getState());
+		//vertex 3 cancelling but not restart, because it will fail till vertex2 succeed
+		assertEquals(JobStatus.CANCELED, strategy.getFailoverRegion(vertex3).getState());
+		waitUntilExecutionState(vertex2.getCurrentExecutionAttempt(), ExecutionState.DEPLOYING, 1000);
+		waitUntilExecutionState(vertex3.getCurrentExecutionAttempt(), ExecutionState.CREATED, 1000);
+		vertex2.getCurrentExecutionAttempt().markFinished();
+
+		waitUntilExecutionState(vertex2.getCurrentExecutionAttempt(), ExecutionState.FINISHED, 1000);
+		waitUntilExecutionState(vertex3.getCurrentExecutionAttempt(), ExecutionState.DEPLOYING, 1000);
+	}
+
 	private static class BatchFailoverWithCustomExecutor implements FailoverStrategy.Factory {
 
 		private final Executor executor;
@@ -174,6 +220,19 @@ public class BatchJobFailoverStrategyTest extends TestLogger {
 		@Override
 		public FailoverStrategy create(ExecutionGraph executionGraph) {
 			return new BatchJobFailoverStrategy(executionGraph, executor);
+		}
+	}
+
+	private static class PartitionDataMissingException extends Exception implements IPartitionDataMissingException {
+
+		private List<ExecutionAttemptID> producers;
+
+		PartitionDataMissingException(ArrayList<ExecutionAttemptID> producers){
+			this.producers = producers;
+		}
+		@Override
+		public List<ExecutionAttemptID> getMissingPartitionProducers() {
+			return this.producers;
 		}
 	}
 }
