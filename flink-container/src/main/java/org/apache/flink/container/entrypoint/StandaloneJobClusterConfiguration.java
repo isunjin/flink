@@ -37,10 +37,14 @@ final class StandaloneJobClusterConfiguration extends EntrypointClusterConfigura
 	@Nonnull
 	private final SavepointRestoreSettings savepointRestoreSettings;
 
+	@Nonnull
+	private final String[] args;
+
 	public StandaloneJobClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, @Nullable String hostname, int restPort, @Nonnull String jobClassName, @Nonnull SavepointRestoreSettings savepointRestoreSettings) {
-		super(configDir, dynamicProperties, args, hostname, restPort);
+		super(configDir, dynamicProperties, hostname, restPort);
 		this.jobClassName = jobClassName;
 		this.savepointRestoreSettings = savepointRestoreSettings;
+		this.args = args;
 	}
 
 	@Nonnull
@@ -51,5 +55,10 @@ final class StandaloneJobClusterConfiguration extends EntrypointClusterConfigura
 	@Nonnull
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
 		return savepointRestoreSettings;
+	}
+
+	@Nonnull
+	public String[] getArgs() {
+		return args;
 	}
 }

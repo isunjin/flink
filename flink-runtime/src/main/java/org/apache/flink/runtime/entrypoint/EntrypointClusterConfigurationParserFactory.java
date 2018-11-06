@@ -61,7 +61,6 @@ public class EntrypointClusterConfigurationParserFactory implements ParserResult
 		return new EntrypointClusterConfiguration(
 			configDir,
 			dynamicProperties,
-			commandLine.getArgs(),
 			hostname,
 			restPort);
 	}
