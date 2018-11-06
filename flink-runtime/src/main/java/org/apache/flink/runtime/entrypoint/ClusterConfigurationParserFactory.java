@@ -51,6 +51,6 @@ public class ClusterConfigurationParserFactory implements ParserResultFactory<Cl
 
 		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 
-		return new ClusterConfiguration(configDir, dynamicProperties, commandLine.getArgs());
+		return new ClusterConfiguration(configDir, dynamicProperties);
 	}
 }

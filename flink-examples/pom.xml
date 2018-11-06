@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -35,6 +35,9 @@ under the License.
 	<modules>
 		<module>flink-examples-batch</module>
 		<module>flink-examples-streaming</module>
+		<module>flink-examples-streaming-kafka-base</module>
+		<module>flink-examples-streaming-kafka</module>
+		<module>flink-examples-streaming-kafka-0.10</module>
 		<module>flink-examples-table</module>
 	</modules>
 

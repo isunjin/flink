@@ -33,8 +33,8 @@ public class EntrypointClusterConfiguration extends ClusterConfiguration {
 
 	private final int restPort;
 
-	public EntrypointClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, @Nullable String hostname, int restPort) {
-		super(configDir, dynamicProperties, args);
+	public EntrypointClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nullable String hostname, int restPort) {
+		super(configDir, dynamicProperties);
 		this.hostname = hostname;
 		this.restPort = restPort;
 	}

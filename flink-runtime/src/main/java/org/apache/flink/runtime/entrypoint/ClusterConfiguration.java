@@ -34,13 +34,9 @@ public class ClusterConfiguration {
 	@Nonnull
 	private final Properties dynamicProperties;
 
-	@Nonnull
-	private final String[] args;
-
-	public ClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args) {
+	public ClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties) {
 		this.configDir = configDir;
 		this.dynamicProperties = dynamicProperties;
-		this.args = args;
 	}
 
 	@Nonnull
@@ -51,10 +47,5 @@ public class ClusterConfiguration {
 	@Nonnull
 	public Properties getDynamicProperties() {
 		return dynamicProperties;
-	}
-
-	@Nonnull
-	public String[] getArgs() {
-		return args;
 	}
 }

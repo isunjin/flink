@@ -88,7 +88,7 @@ import java.util.List;
  *         Total duration is (sliding_window_operator.num_events) * (sequence_generator_source.event_time.clock_progress).</li>
  * </ul>
  */
-class DataStreamAllroundTestJobFactory {
+public class DataStreamAllroundTestJobFactory {
 	private static final ConfigOption<String> TEST_SEMANTICS = ConfigOptions
 		.key("test.semantics")
 		.defaultValue("exactly-once")
@@ -201,7 +201,7 @@ class DataStreamAllroundTestJobFactory {
 		.key("tumbling_window_operator.num_events")
 		.defaultValue(20L);
 
-	static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt) throws Exception {
+	public static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt) throws Exception {
 
 		// set checkpointing semantics
 		String semantics = pt.get(TEST_SEMANTICS.key(), TEST_SEMANTICS.defaultValue());
@@ -322,6 +322,8 @@ class DataStreamAllroundTestJobFactory {
 					SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.key(),
 					SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.defaultValue()))) {
 
+			private static final long serialVersionUID = -3154419724891779938L;
+
 			@Override
 			public long extractTimestamp(Event element) {
 				return element.getEventTime();
@@ -367,8 +369,8 @@ class DataStreamAllroundTestJobFactory {
 		return pt.getBoolean(TEST_SIMULATE_FAILURE.key(), TEST_SIMULATE_FAILURE.defaultValue());
 	}
 
-	static MapFunction<Event, Event> createExceptionThrowingFailureMapper(ParameterTool pt) {
-		return new ExceptionThrowingFailureMapper<>(
+	static MapFunction<Event, Event> createFailureMapper(ParameterTool pt) {
+		return new FailureMapper<>(
 			pt.getLong(
 				TEST_SIMULATE_FAILURE_NUM_RECORDS.key(),
 				TEST_SIMULATE_FAILURE_NUM_RECORDS.defaultValue()),
