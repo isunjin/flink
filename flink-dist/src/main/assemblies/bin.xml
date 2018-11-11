@@ -89,6 +89,13 @@ under the License.
 			<fileMode>0644</fileMode>
 		</fileSet>
 
+		<!-- copy k8s start scripts -->
+		<fileSet>
+			<directory>src/main/flink-bin/kubernetes-bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 		<!-- copy yarn start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/yarn-bin</directory>

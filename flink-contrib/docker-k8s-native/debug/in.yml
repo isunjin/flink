@@ -1,0 +1,22 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: tomcat-ingress
+  annotations:
+    service.beta.kubernetes.io/alicloud-loadbalancer-id: flink-test-slb1
+spec:
+  tls:
+  - hosts:
+    - bar.foo.com
+    # 配置TLS证书
+    secretName: cert-example
+  rules:
+  # 配置七层域名
+  - host: bar.foo.com
+    http:
+      paths:
+      # 配置Context Path
+      - path: /
+        backend:
+          serviceName: tomcat
+          servicePort: 8080

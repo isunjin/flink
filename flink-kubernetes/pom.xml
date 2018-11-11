@@ -22,7 +22,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	
@@ -44,6 +44,19 @@
 			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>io.kubernetes</groupId>
+			<artifactId>client-java</artifactId>
+			<version>1.0.0</version>
 		</dependency>
 
 		<!-- test dependencies -->

@@ -16,27 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes;
+package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.kubernetes.configuration.KubernetesClusterConfiguration;
+import org.apache.flink.kubernetes.resourcemanager.KubernetesResourceManagerFactory;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointException;
+import org.apache.flink.runtime.entrypoint.EntrypointClusterConfiguration;
+import org.apache.flink.runtime.entrypoint.EntrypointClusterConfigurationParserFactory;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.JvmShutdownSafeguard;
+import org.apache.flink.runtime.util.SignalHandler;
+
+import javax.annotation.Nonnull;
 
 /**
  * Entrypoint for a Kubernetes session cluster.
  */
 public class KubernetesSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
-	public KubernetesSessionClusterEntrypoint(Configuration configuration) {
+	@Nonnull
+	private final KubernetesClusterConfiguration kuberConfig;
+
+	public KubernetesSessionClusterEntrypoint(Configuration configuration, KubernetesClusterConfiguration kuberConfig) {
 		super(configuration);
+		this.kuberConfig = kuberConfig;
 	}
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return null;
-	}
-
-	public static void main(String[] args) {
-		LOG.info("Started {}.", KubernetesSessionClusterEntrypoint.class.getSimpleName());
+		return new SessionDispatcherResourceManagerComponentFactory(new KubernetesResourceManagerFactory(this.kuberConfig.getImageName(), this.kuberConfig.getClusterId()));
 	}
 }
