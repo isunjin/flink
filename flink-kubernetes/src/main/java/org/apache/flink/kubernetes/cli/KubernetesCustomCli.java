@@ -31,6 +31,8 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.kubernetes.cluster.IKubeClient;
+import org.apache.flink.kubernetes.cluster.KubeClient;
 import org.apache.flink.kubernetes.cluster.KubernetesClusterDescriptor;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -43,8 +45,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -63,14 +67,14 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 	private static final Option USER_CODE_JAR_OPTION = new Option("u", "userCodeJar", true, "User code jar");
 
-	protected static final Option K8s_CONFIG_File = new Option("kc", "K8sConfigFile", true,
+	protected static final Option K8s_CONFIG_File = new Option("kc", "kubeConfig", true,
 		"The config file to for K8s API client");
 
 	protected static final Option K8s_MODE = new Option("k8s", "K8sMode", false,
 		"Use K8s Mode");
 
-	protected static final Option K8s_APPLICATION_ID = new Option("kid", "k8sApplicationId", true,
-		"Kubernetes Application Id");
+	protected static final Option FLINK_CLUSTER_ID = new Option("cid", "clusterId", true,
+		"Flink Cluster Id");
 
 	private static final Option HELP = new Option("h", "help", false, "Help for the Yarn session CLI.");
 
@@ -82,11 +86,14 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		protected final Properties dynamicProperties;
 
+		protected final String clusterId;
+
 		public K8sOptions(CommandLine line) {
 			super(line);
 			this.configFile = line.getOptionValue(K8s_CONFIG_File.getOpt(), "");
 			this.helpOption = line.hasOption(HELP.getOpt());
 			this.dynamicProperties = line.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
+			this.clusterId = line.getOptionValue(FLINK_CLUSTER_ID.getOpt(), "");
 		}
 
 		public String getConfigFile() {
@@ -99,6 +106,10 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		public Properties getDynamicProperties() {
 			return dynamicProperties;
+		}
+
+		public String getClusterId() {
+			return clusterId;
 		}
 	}
 
@@ -116,15 +127,8 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 	public class StopOptions extends K8sOptions {
 
-		protected final String applicationId;
-
 		public StopOptions(CommandLine line) {
 			super(line);
-			this.applicationId = line.getOptionValue(K8s_APPLICATION_ID.getOpt(), "");
-		}
-
-		public String getApplicationId() {
-			return applicationId;
 		}
 	}
 
@@ -140,8 +144,6 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		protected final String userCodeJar;
 
-		protected final String applicationId;
-
 		public RunOptions(CommandLine line) {
 			super(line);
 			this.k8sMode = line.hasOption(K8s_MODE.getOpt());
@@ -149,7 +151,6 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 			this.imageName = line.getOptionValue(IMAGE_OPTION.getOpt(), "flink-dummy");
 			this.entryClassName = line.getOptionValue(CLASS_OPTION.getOpt());
 			this.userCodeJar = line.getOptionValue(USER_CODE_JAR_OPTION.getOpt());
-			this.applicationId = line.getOptionValue(K8s_APPLICATION_ID.getOpt(), "");
 		}
 
 		public String getAddress() {
@@ -174,9 +175,6 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 			return userCodeJar;
 		}
 
-		public String getApplicationId() {
-			return applicationId;
-		}
 	}
 
 	// actions
@@ -216,7 +214,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 			.addOption(USER_CODE_JAR_OPTION)
 			.addOption(CLASS_OPTION)
 			.addOption(DYNAMIC_PROPERTY_OPTION)
-			.addOption(K8s_APPLICATION_ID);
+			.addOption(FLINK_CLUSTER_ID);
 	}
 
 	@Override
@@ -228,18 +226,6 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		for (String propertyName : runOptions.getDynamicProperties().stringPropertyNames()) {
 			configuration.setString(propertyName, runOptions.getDynamicProperties().getProperty(propertyName));
-		}
-
-		Matcher matcher = ADDRESS_PATTERN.matcher(runOptions.getAddress());
-
-		if (matcher.find()) {
-			Preconditions.checkState(matcher.matches());
-
-			String address = matcher.group(1);
-			String port = matcher.group(2);
-
-			configuration.setString(JobManagerOptions.ADDRESS, address);
-			configuration.setInteger(JobManagerOptions.PORT, Integer.parseInt(port));
 		}
 
 		//MUST HAVE
@@ -258,22 +244,30 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 		}
 	}
 
+	private IKubeClient getKubeClient(CommandLine commandLine) throws IOException {
+		K8sOptions k8sOptions = new K8sOptions(commandLine);
+		return new KubeClient(k8sOptions.getConfigFile());
+	}
+
 	@Nullable
 	@Override
 	public String getClusterId(CommandLine commandLine) {
 		try {
 			RunOptions runOptions = new RunOptions(commandLine);
 
-			String k8sApplicationId = runOptions.getApplicationId();
+			String clusterId = runOptions.getClusterId();
 
-			if (!k8sApplicationId.isEmpty()) {
-				return k8sApplicationId;
+			if (!clusterId.isEmpty()) {
+				return clusterId;
+			} else {
+				IKubeClient client = getKubeClient(commandLine);
+				List<String> clusterList = client.listClusters();
+
+				if (clusterList != null && clusterList.size() > 0) {
+					return clusterList.get(0);
+				}
 			}
-			else{
-				Properties properties = this.propertyUtil.read();
-				return properties.getProperty("default");
-			}
-		}catch (Exception e){
+		} catch (Exception e) {
 
 		}
 
@@ -327,8 +321,10 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 			return 0;
 		}
 
-		KubernetesClusterDescriptor cluster = (KubernetesClusterDescriptor)this.createClusterDescriptor(cmd);
-		cluster.killDefaultSessionCluster();
+		String clusterId = getClusterId(cmd);
+
+		KubernetesClusterDescriptor cluster = (KubernetesClusterDescriptor) this.createClusterDescriptor(cmd);
+		cluster.killCluster(clusterId);
 
 		return 0;
 	}

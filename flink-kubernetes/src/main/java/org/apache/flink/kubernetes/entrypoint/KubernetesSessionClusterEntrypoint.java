@@ -50,6 +50,6 @@ public class KubernetesSessionClusterEntrypoint extends SessionClusterEntrypoint
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return new SessionDispatcherResourceManagerComponentFactory(new KubernetesResourceManagerFactory(this.kuberConfig.getImageName(), this.kuberConfig.getClusterId()));
+		return new SessionDispatcherResourceManagerComponentFactory(new KubernetesResourceManagerFactory(this.kuberConfig.getImageName(), this.kuberConfig.getClusterId(), this.kuberConfig.getServiceUid()));
 	}
 }

@@ -22,17 +22,23 @@ import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1Container;
 import io.kubernetes.client.models.V1ContainerPort;
+import io.kubernetes.client.models.V1DeleteOptions;
 import io.kubernetes.client.models.V1HostPathVolumeSource;
 import io.kubernetes.client.models.V1ObjectMeta;
 import io.kubernetes.client.models.V1OwnerReference;
+import io.kubernetes.client.models.V1PersistentVolumeClaimVolumeSource;
 import io.kubernetes.client.models.V1Pod;
+import io.kubernetes.client.models.V1PodList;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1Service;
+import io.kubernetes.client.models.V1ServiceList;
 import io.kubernetes.client.models.V1ServicePort;
 import io.kubernetes.client.models.V1ServiceSpec;
+import io.kubernetes.client.models.V1ServiceStatus;
 import io.kubernetes.client.models.V1Volume;
 import io.kubernetes.client.models.V1VolumeMount;
 import io.kubernetes.client.util.Config;
+import org.apache.commons.lang3.text.translate.UnicodeUnpairedSurrogateRemover;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
@@ -45,6 +51,7 @@ import org.apache.flink.kubernetes.cli.KubernetesCustomCli;
 import org.apache.flink.kubernetes.cli.PropertyUtil;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.PropertiesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Kubernetes specific {@link ClusterDescriptor} implementation.
@@ -80,12 +88,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	private final String userCodeJar;
 
 	private CoreV1Api kubernetesClient;
-
-	private String jobManagerIpOrDns = null;
-
-	private int jobManagerUIPort = -1;
-
-	private String clusterId;
 
 	private PropertyUtil propertyUtil;
 
@@ -107,16 +109,55 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			kubernetesClient = new CoreV1Api(Config.defaultClient());
 		}
 
-		this.jobManagerIpOrDns = configuration.getString(JobManagerOptions.ADDRESS);
-		this.jobManagerUIPort = configuration.getInteger(JobManagerOptions.PORT);
 		this.propertyUtil = propertyUtil;
 	}
 
-	public void fillProperty(Properties properties){
-		String endPoint = String.format("k8s://%s:%d", this.jobManagerIpOrDns, this.jobManagerUIPort);
-		properties.setProperty("default", endPoint);
-		properties.setProperty("default.clusterId", this.clusterId);
-		properties.setProperty(this.clusterId,  endPoint);
+	private Map<String, String> getCommonLabels(){
+		final Map<String, String> labels = new HashMap<>(2);
+		labels.put("app", "flink");
+		labels.put("role", "jobmanager");
+		return labels;
+	}
+
+	private Map<String, String> getLabelWithClusterId(String clusterId){
+		final Map<String, String> labels = this.getCommonLabels();
+		labels.put("cluster", clusterId);
+		return labels;
+	}
+
+	public String getExternalIP(String clusterId) throws  Exception {
+
+		boolean debugMode = this.configuration.getBoolean("debug.enable", false);
+
+		if(debugMode){
+			return "192.168.99.100";
+		}
+
+		String labelSelector = this.getLabelWithClusterId(clusterId)
+			.entrySet()
+			.stream()
+			.map(e -> e.getKey() + "=" + e.getValue())
+			.collect(Collectors.joining(","));
+
+		String loadBalanceId = null;
+		while(true) {
+
+			V1ServiceList list = kubernetesClient
+				.listNamespacedService("default", "true", null, null, true, labelSelector, 1000, null, null, false);
+
+			V1Service service = list.getItems().get(0);
+			if(service.getSpec().getExternalIPs()!=null &&service.getSpec().getExternalIPs().size() > 0){
+				return service.getSpec().getExternalIPs().get(0);
+			}
+			if (service.getStatus().getLoadBalancer() == null
+				|| service.getStatus().getLoadBalancer().getIngress() == null) {
+				Thread.sleep(1000);
+				continue;
+			}
+			loadBalanceId = service.getStatus().getLoadBalancer().getIngress().get(0).getIp();
+			break;
+		}
+		return loadBalanceId;
 	}
 
 	@Override
@@ -127,6 +168,9 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	@Override
 	public ClusterClient<String> retrieve(String clusterId) throws ClusterRetrieveException {
 		try {
+			String jobManagerIP = this.getExternalIP(clusterId);
+			configuration.setString(JobManagerOptions.ADDRESS, jobManagerIP);
+			configuration.setInteger(JobManagerOptions.PORT, 8081);
 			return new RestClusterClient<>(this.configuration, clusterId);
 		} catch (Exception e) {
 			throw new ClusterRetrieveException("Could not create the RestClusterClient.", e);
@@ -135,7 +179,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
 	@Override
 	public ClusterClient<String> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
-		this.clusterId = "flink-session-cluster-" + UUID.randomUUID();
+		String clusterId = "flink-session-cluster-" + UUID.randomUUID();
 
 		final List<String> args = new ArrayList<>(1);
 
@@ -143,9 +187,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		args.add("-i");
 		args.add(this.imageName);
 		args.add("-cid");
-		args.add("test");
-		args.add("-h");
-		args.add(this.jobManagerIpOrDns);
+		args.add(clusterId);
 		boolean debugMode = this.configuration.getBoolean("debug.enable", false);
 
 		if(debugMode){
@@ -153,7 +195,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			args.add("debug.enable=true");
 		}
 
-		return deployClusterInternal(this.clusterId, args);
+		return deployClusterInternal(clusterId, args);
 	}
 
 	@Override
@@ -183,9 +225,10 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	@Nonnull
 	private ClusterClient<String> deployClusterInternal(String clusterId, List<String> args) throws ClusterDeploymentException {
 		try {
-			final Map<String, String> labels = new HashMap<>(2);
-			labels.put("app", "flink");
-			labels.put("cluster", clusterId);
+
+			boolean debugMode = this.configuration.getBoolean("debug.enable", false);
+
+			final Map<String, String> labels = this.getLabelWithClusterId(clusterId);
 
 			final V1ServicePort rpcPort = new V1ServicePort()
 				.name("rpc")
@@ -202,32 +245,52 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			final String uiPortName = "ui";
 			final V1ServicePort uiPort = new V1ServicePort()
 				.name(uiPortName)
-				.port(this.jobManagerUIPort);
+				.port(8081);
 
-			final V1ServiceSpec serviceSpec = new V1ServiceSpec()
+			V1ServiceSpec serviceSpec = new V1ServiceSpec()
 				//.type("NodePort")
 				.ports(
 					Arrays.asList(rpcPort, blobPort, queryPort, uiPort))
-				.selector(labels);//.addExternalIPsItem(this.jobManagerIpOrDns);
+				.selector(labels)
+				.type("LoadBalancer")
+				;//.addExternalIPsItem(this.jobManagerIpOrDns);
+
+			if(debugMode){
+				serviceSpec = serviceSpec.loadBalancerIP("192.168.99.100")
+				.addExternalIPsItem("192.168.99.100");
+			}
 
 			final V1Service service = new V1Service()
 				.apiVersion("v1")
 				.kind("Service")
-				.metadata(new V1ObjectMeta().name(clusterId).labels(labels)
-					.addOwnerReferencesItem(new V1OwnerReference()
-						.name(clusterId)
-						.blockOwnerDeletion(true)
-						.kind("pod")
-						.apiVersion("v1")
-						.uid(UUID.randomUUID().toString())
-					))
+				.metadata(new V1ObjectMeta()
+					.name(clusterId)
+					.labels(labels))
 				.spec(serviceSpec);
 
-			//final V1Service namespacedService = kubernetesClient.createNamespacedService("default", service, "true");
+			kubernetesClient.createNamespacedService("default", service, "true");
 
-			//final List<V1ServicePort> ports = namespacedService.getSpec().getPorts();
+			Thread.sleep(1000);
 
-			//int uiNodePort = -1;
+			String jobManagerIP = this.getExternalIP(clusterId);
+			configuration.setString(JobManagerOptions.ADDRESS, jobManagerIP);
+			configuration.setInteger(JobManagerOptions.PORT, 8081);
+
+
+			String labelSelector = this.getLabelWithClusterId(clusterId)
+				.entrySet()
+				.stream()
+				.map(e -> e.getKey() + "=" + e.getValue())
+				.collect(Collectors.joining(","));
+
+			V1ServiceList list = kubernetesClient
+				.listNamespacedService("default", "true", null, null, true, labelSelector, 1000, null, null, false);
+
+			V1Service service1 = list.getItems().get(0);
+
+			//for deletion
+			args.add("-uid");
+			args.add(service1.getMetadata().getUid());
 
 			V1Container clusterContainer = new V1Container()
 				.name(clusterId)
@@ -245,8 +308,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			//new V1EnvVar().name(KUBERNETES_CLUSTER_ID).value(clusterName)));
 
 			V1PodSpec spec = new V1PodSpec();
-
-			boolean debugMode = this.configuration.getBoolean("debug.enable", false);
 
 			LOG.info("NOT In debug mode");
 			if (debugMode) {
@@ -266,24 +327,54 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 						.hostPath(new V1HostPathVolumeSource().path("/flink-root/")));
 			}
 
+			boolean attachOss = true;
+
+			if(attachOss){
+				clusterContainer = clusterContainer
+					.addVolumeMountsItem(new V1VolumeMount().name("pvc-oss").mountPath("/data"));
+
+				spec = spec.addVolumesItem(new V1Volume().name("pvc-oss")
+					.persistentVolumeClaim(new V1PersistentVolumeClaimVolumeSource()
+						.claimName("pvc-oss")));
+			}
+
+			final Map<String, String> podLabels = new HashMap<>(labels);
+			podLabels.put("role","jobmanager");
+
 			final V1Pod pod = new V1Pod()
 				.apiVersion("v1")
-				.metadata(new V1ObjectMeta().name(clusterId).labels(labels))
+				.metadata(new V1ObjectMeta().
+					name(clusterId)
+					.labels(labels)
+					.addOwnerReferencesItem(new V1OwnerReference()
+						.name(service.getMetadata().getName())
+						.controller(true)
+						.blockOwnerDeletion(true)
+						.kind(service.getKind())
+						.apiVersion(service.getApiVersion())
+						.uid(service1.getMetadata().getUid())
+					)
+				)
 				.spec(spec.containers(Collections.singletonList(clusterContainer)));
 
 			kubernetesClient.createNamespacedPod("default", pod, "true");
 
 			final Configuration modifiedConfiguration = new Configuration(configuration);
 
-			Properties properties = this.propertyUtil.read();
-			this.fillProperty(properties);
-			this.propertyUtil.write(properties);
+			/*Properties properties = this.propertyUtil.read();
+			String endPoint = String.format("k8s://%s:%d", this.jobManagerIpOrDns, this.jobManagerUIPort);
+			properties.setProperty("default", endPoint);
+			properties.setProperty("default.clusterId", this.clusterId);
+			properties.setProperty(this.clusterId,  endPoint);
+			this.propertyUtil.write(properties);*/
 
 			return new RestClusterClient<>(modifiedConfiguration, clusterId);
 		} catch (ApiException e){
+			this.tryKill(clusterId);
 			throw new ClusterDeploymentException("Could not create the Kubernetes cluster client" + e.getResponseBody(), e);
 		}
 		catch (Exception e) {
+			this.tryKill(clusterId);
 			throw new ClusterDeploymentException("Could not create the Kubernetes cluster client", e);
 		}
 	}
@@ -296,13 +387,21 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		}
 	}
 
+	private void tryKill(String clusterId){
+		try {
+			this.killCluster(clusterId);
+		}catch (Exception e){
+			LOG.info("Fail to kill cluster {}: {}", clusterId, e.toString());
+		}
+	}
+
 	@Override
 	public void killCluster(String clusterId) throws FlinkException {
 		try {
-			kubernetesClient.deleteNamespacedService(clusterId, "default", "true");
-			kubernetesClient.deleteCollectionNamespacedPod("default", "true", null, null, true, "app=flink,cluster=" + clusterId, 1000, null, null, false);
+			kubernetesClient.deleteNamespacedService(clusterId, "default", new V1DeleteOptions(), null, 1, null, "Foreground");
+			//kubernetesClient.deleteCollectionNamespacedPod("default", "true", null, null, true, "app=flink,cluster=" + clusterId, 1000, null, null, false);
 		} catch (ApiException e) {
-			throw new FlinkException(String.format("Could not kill the cluster %s.", clusterId), e);
+			throw new FlinkException(String.format("Could not kill the cluster %s: %s.", clusterId, e.getResponseBody()), e);
 		}
 	}
 

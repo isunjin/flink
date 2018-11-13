@@ -32,15 +32,19 @@ public class KubernetesClusterConfiguration extends EntrypointClusterConfigurati
 	@Nullable
 	private String clusterId;
 
+	private String serviceUid;
+
 	public KubernetesClusterConfiguration(@Nonnull String configDir,
-								   @Nonnull Properties dynamicProperties,
-								   @Nullable String hostname,
-								   int restPort,
-								   String imageName,
-								   String clusterId) {
+										  @Nonnull Properties dynamicProperties,
+										  @Nullable String hostname,
+										  int restPort,
+										  String imageName,
+										  String clusterId,
+										  String serviceUid) {
 		super(configDir, dynamicProperties, hostname, restPort);
 		this.clusterId = clusterId;
 		this.imageName = imageName;
+		this.serviceUid = serviceUid;
 	}
 
 	@Nullable
@@ -51,5 +55,9 @@ public class KubernetesClusterConfiguration extends EntrypointClusterConfigurati
 	@Nullable
 	public String getImageName() {
 		return imageName;
+	}
+
+	public String getServiceUid() {
+		return serviceUid;
 	}
 }

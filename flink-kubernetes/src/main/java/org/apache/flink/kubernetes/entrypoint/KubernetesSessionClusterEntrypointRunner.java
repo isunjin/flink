@@ -51,6 +51,14 @@ public class KubernetesSessionClusterEntrypointRunner extends ClusterEntrypointR
 		.desc("the cluster id that will be used in namespace")
 		.build();
 
+	public static final Option SERVICE_UUID_OPTION = Option.builder("uid")
+		.longOpt("serviceUid")
+		.required(true)
+		.hasArg(true)
+		.argName("serviceUid")
+		.desc("the unique id for the sevice of this cluster")
+		.build();
+
 	@Override
 	protected KubernetesSessionClusterEntrypoint createClusterEntrypoint(Configuration configuration, KubernetesClusterConfiguration entrypointClusterConfiguration) {
 		return new KubernetesSessionClusterEntrypoint(configuration, entrypointClusterConfiguration);
@@ -65,6 +73,7 @@ public class KubernetesSessionClusterEntrypointRunner extends ClusterEntrypointR
 		options.addOption(DYNAMIC_PROPERTY_OPTION);
 		options.addOption(IMAGE_OPTION);
 		options.addOption(CLUSTERID_OPTION);
+		options.addOption(SERVICE_UUID_OPTION);
 		return options;
 	}
 
@@ -74,9 +83,12 @@ public class KubernetesSessionClusterEntrypointRunner extends ClusterEntrypointR
 		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
 		final int restPort = Integer.parseInt(restPortString);
-		final String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
+		String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
 		final String imageName = commandLine.getOptionValue(IMAGE_OPTION.getOpt());
 		final String clusterId = commandLine.getOptionValue(CLUSTERID_OPTION.getOpt());
+		final String uuid = commandLine.getOptionValue(SERVICE_UUID_OPTION.getOpt());
+
+		hostname = hostname == null ? clusterId : hostname;
 
 		return new KubernetesClusterConfiguration(
 			configDir,
@@ -84,7 +96,8 @@ public class KubernetesSessionClusterEntrypointRunner extends ClusterEntrypointR
 			hostname,
 			restPort,
 			imageName,
-			clusterId);
+			clusterId,
+			uuid);
 	}
 
 	public static void main(String[] args){

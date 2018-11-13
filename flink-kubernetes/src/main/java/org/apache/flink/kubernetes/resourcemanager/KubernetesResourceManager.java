@@ -19,6 +19,8 @@
 package org.apache.flink.kubernetes.resourcemanager;
 
 import io.kubernetes.client.models.V1HostPathVolumeSource;
+import io.kubernetes.client.models.V1OwnerReference;
+import io.kubernetes.client.models.V1PersistentVolumeClaimVolumeSource;
 import io.kubernetes.client.models.V1Volume;
 import io.kubernetes.client.models.V1VolumeMount;
 import org.apache.flink.configuration.Configuration;
@@ -89,6 +91,8 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 
 	private final Configuration flinkConfig;
 
+	private String serviceUid;
+
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesResourceManager.class);
 
 	public KubernetesResourceManager(
@@ -105,12 +109,14 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 		FatalErrorHandler fatalErrorHandler,
 		@Nonnull String clusterId,
 		@Nonnull String imageName,
+		String serviceUid,
 		JobManagerMetricGroup jobManagerMetricGroup) {
 		super(rpcService, resourceManagerEndpointId, resourceId, highAvailabilityServices, heartbeatServices, slotManager, metricRegistry, jobLeaderIdService, clusterInformation, fatalErrorHandler, jobManagerMetricGroup);
 
 		this.flinkConfig = flinkConfig;
 		this.clusterId = clusterId;
 		this.imageName = imageName;
+		this.serviceUid = serviceUid;
 		this.kubernetesApi = null;
 		this.workerNodeMap = new ConcurrentHashMap<>();
 
@@ -123,9 +129,14 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 	protected void initialize() throws ResourceManagerException {
 		ApiClient apiClient;
 		try {
-			//apiClient = Config.defaultClient();
-			log.warn("cluster config");
-			apiClient = Config.fromCluster();
+			boolean debugMode = this.flinkConfig.getBoolean("debug.enable", false);
+			if(debugMode){
+				apiClient = Config.defaultClient();
+			}
+			else{
+				log.warn("cluster config");
+				apiClient = Config.fromCluster();
+			}
 		} catch (IOException e) {
 			throw new ResourceManagerException("Could not create the Kubernetes ApiClient.", e);
 		}
@@ -136,7 +147,7 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 	@Override
 	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) {
 		try {
-			kubernetesApi.deleteNamespacedService(clusterId, "default", "true");
+			kubernetesApi.deleteNamespacedService(clusterId, "default", new V1DeleteOptions(), null, 1, null, "Foreground");
 			kubernetesApi.deleteCollectionNamespacedPod("default", "true", null, null, true, "app=flink,cluster=" + clusterId, 1000, null, null, false);
 		} catch (ApiException e) {
 			log.warn("Could not properly deregister Kubernetes application.", e);
@@ -197,9 +208,20 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 				.name("flink-dist-volume")
 			);
 
-			spec.addVolumesItem(new V1Volume()
+			spec = spec.addVolumesItem(new V1Volume()
 				.name("flink-dist-volume")
 				.hostPath(new V1HostPathVolumeSource().path("/flink-root/flink-dist/target/flink-1.8-SNAPSHOT-bin")));
+		}
+
+		boolean attachOss = true;
+
+		if(attachOss){
+			container = container
+				.addVolumeMountsItem(new V1VolumeMount().name("pvc-oss").mountPath("/data"));
+
+			spec = spec.addVolumesItem(new V1Volume().name("pvc-oss")
+				.persistentVolumeClaim(new V1PersistentVolumeClaimVolumeSource()
+					.claimName("pvc-oss")));
 		}
 
 		final Map<String, String> labels = new HashMap<>(2);
@@ -208,7 +230,18 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 
 		return new V1Pod()
 			.apiVersion("v1")
-			.metadata(new V1ObjectMeta().name(podName).labels(labels))
+			.metadata(new V1ObjectMeta()
+				.name(podName)
+				.labels(labels)
+				.addOwnerReferencesItem(new V1OwnerReference()
+					.name(this.clusterId)
+					.controller(true)
+					.blockOwnerDeletion(true)
+					.kind("Service")
+					.apiVersion("v1")
+					.uid(this.serviceUid)
+				)
+			)
 			.spec(spec.containers(Collections.singletonList(container)));
 	}
 

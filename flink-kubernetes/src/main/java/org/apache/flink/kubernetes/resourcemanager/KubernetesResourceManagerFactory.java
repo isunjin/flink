@@ -25,9 +25,12 @@ public class KubernetesResourceManagerFactory implements ResourceManagerFactory<
 	@Nonnull
 	private final String clusterId;
 
-	public KubernetesResourceManagerFactory(@Nonnull String imageName, @Nonnull String clusterId) {
+	private final String serviceUid;
+
+	public KubernetesResourceManagerFactory(@Nonnull String imageName, @Nonnull String clusterId, String serviceUid) {
 		this.imageName = imageName;
 		this.clusterId = clusterId;
+		this.serviceUid = serviceUid;
 	}
 
 	@Override
@@ -62,6 +65,7 @@ public class KubernetesResourceManagerFactory implements ResourceManagerFactory<
 			fatalErrorHandler,
 			clusterId,
 			imageName,
+			this.serviceUid,
 			jobManagerMetricGroup);
 	}
 }

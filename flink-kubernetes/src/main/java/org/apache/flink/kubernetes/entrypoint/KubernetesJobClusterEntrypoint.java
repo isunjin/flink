@@ -83,7 +83,7 @@ public class KubernetesJobClusterEntrypoint extends JobClusterEntrypoint {
 	@Override
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return new JobDispatcherResourceManagerComponentFactory(
-			new KubernetesResourceManagerFactory(imageName, clusterId),
+			new KubernetesResourceManagerFactory(imageName, clusterId, null),
 			new ClassPathJobGraphRetriever(jobClassName, savepointRestoreSettings, programArguments));
 	}
 
