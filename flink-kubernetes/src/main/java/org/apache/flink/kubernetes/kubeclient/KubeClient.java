@@ -41,6 +41,16 @@ public interface KubeClient extends AutoCloseable {
 	void createClusterPod();
 
 	/**
+	 * Create task manager Pod.
+	 * */
+	void createTaskManagerPod();
+
+	/**
+	 * stop the specific pod.
+	 * */
+	void stopPod();
+
+	/**
 	 * stop cluster and clean up all resources, include services, auxiliary services and all running pods.
 	 * */
 	void stopAndCleanupCluster(String clusterId);
