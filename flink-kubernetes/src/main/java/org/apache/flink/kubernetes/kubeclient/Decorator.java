@@ -18,48 +18,15 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
+import org.apache.flink.kubernetes.kubeclient.resources.Resource;
+
 /**
- * The client to talk with kubernetes.
+ * Abstract decorator for add features to resource such as pod/service
  * */
-public interface KubeClient extends AutoCloseable {
+public abstract class Decorator<T extends Resource>  {
 
 	/**
-	 * Initialize client.
+	 * decorate a resource
 	 * */
-	void initialize();
-
-	/**
-	 * Create kubernetes services and expose endpoints for access outside cluster.
-	 */
-	Endpoint createClusterService();
-
-	/**
-	 * Create cluster pod.
-	 */
-	void createClusterPod();
-
-	/**
-	 * Create task manager Pod.
-	 * */
-	void createTaskManagerPod();
-
-	/**
-	 * stop the specific pod.
-	 * */
-	void stopPod();
-
-	/**
-	 * stop cluster and clean up all resources, include services, auxiliary services and all running pods.
-	 * */
-	void stopAndCleanupCluster(String clusterId);
-
-	/**
-	 * Log exceptions.
-	 * */
-	void logException(Exception e);
-
-	/**
-	 * retrieval rest endpoint of the giving flink clusterId.
-	 */
-	Endpoint getResetEndpoint(String flinkClusterId);
+	public abstract T decorate(T resource);
 }
