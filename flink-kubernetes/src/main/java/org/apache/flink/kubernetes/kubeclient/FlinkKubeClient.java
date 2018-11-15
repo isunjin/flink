@@ -18,48 +18,58 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-/**
- * The client to talk with kubernetes.
- * */
-public interface KubeClient extends AutoCloseable {
+import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 
-	/**
-	 * Initialize client.
-	 * */
-	void initialize();
+public class FlinkKubeClient implements KubeClient {
 
-	/**
-	 * Create kubernetes services and expose endpoints for access outside cluster.
-	 */
-	Endpoint createClusterService();
+	private FlinkKubernetesOptions kubeOptions;
 
-	/**
-	 * Create cluster pod.
-	 */
-	void createClusterPod();
+	public FlinkKubeClient(FlinkKubernetesOptions kubeOptions) {
+		this.kubeOptions = kubeOptions;
+	}
 
-	/**
-	 * Create task manager Pod.
-	 * */
-	void createTaskManagerPod();
+	@Override
+	public void initialize() {
 
-	/**
-	 * stop the specific pod.
-	 * */
-	void stopPod();
+	}
 
-	/**
-	 * stop cluster and clean up all resources, include services, auxiliary services and all running pods.
-	 * */
-	void stopAndCleanupCluster(String clusterId);
+	@Override
+	public void createClusterPod() {
 
-	/**
-	 * Log exceptions.
-	 * */
-	void logException(Exception e);
+	}
 
-	/**
-	 * retrieval rest endpoint of the giving flink clusterId.
-	 */
-	Endpoint getResetEndpoint(String flinkClusterId);
+	@Override
+	public void createTaskManagerPod() {
+
+	}
+
+	@Override
+	public Endpoint createClusterService() {
+		return null;
+	}
+
+	@Override
+	public void stopPod() {
+
+	}
+
+	@Override
+	public void stopAndCleanupCluster(String clusterId) {
+
+	}
+
+	@Override
+	public void logException(Exception e) {
+
+	}
+
+	@Override
+	public Endpoint getResetEndpoint(String flinkClusterId) {
+		return null;
+	}
+
+	@Override
+	public void close() throws Exception {
+
+	}
 }
