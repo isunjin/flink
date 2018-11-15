@@ -109,7 +109,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	@Nonnull
 	private ClusterClient<String> deployClusterInternal(String clusterId, List<String> args) throws ClusterDeploymentException {
 		try {
-			Endpoint clusterEndpoint = this.client.createClusterService();
+			Endpoint clusterEndpoint = this.client.createClusterService(clusterId).get();
 			this.client.createClusterPod();
 			return this.createClusterEndpoint(clusterEndpoint, clusterId);
 		}
