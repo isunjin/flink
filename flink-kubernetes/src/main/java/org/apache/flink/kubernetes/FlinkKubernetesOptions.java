@@ -47,6 +47,8 @@ public class FlinkKubernetesOptions {
 
 	private String imageName;
 
+	private String kubeConfigFileName = null;
+
 	public FlinkKubernetesOptions(Configuration configuration, String clusterId) {
 		Preconditions.checkArgument(configuration != null);
 		this.configuration = configuration;
@@ -87,5 +89,13 @@ public class FlinkKubernetesOptions {
 
 	public Configuration getConfiguration() {
 		return configuration;
+	}
+
+	public String getKubeConfigFilePath() {
+		return kubeConfigFileName;
+	}
+
+	public void setKubeConfigFileName(String kubeConfigFileName) {
+		this.kubeConfigFileName = kubeConfigFileName;
 	}
 }

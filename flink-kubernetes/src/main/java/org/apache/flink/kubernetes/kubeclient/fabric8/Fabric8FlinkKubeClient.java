@@ -29,6 +29,8 @@ import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.LoadBalancerDec
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.PodInitializerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServiceInitializerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServicePortDecorator;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.TaskManagerDecorator;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
@@ -43,7 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The implementation of KubeClient.
+ * The implementation of {@link KubeClient}.
  * */
 public class Fabric8FlinkKubeClient implements KubeClient {
 
@@ -52,6 +54,8 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 	private FlinkKubernetesOptions flinkKubeOptions;
 
 	private List<Decorator<Pod, FlinkPod>> clusterPodDecorators;
+
+	private List<Decorator<Pod, FlinkPod>> taskManagerPodDecorators;
 
 	private List<Decorator<Service, FlinkService>> serviceDecorators;
 
@@ -62,6 +66,7 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 		this.flinkKubeOptions = kubeOptions;
 		this.clusterPodDecorators = new ArrayList<>();
 		this.serviceDecorators = new ArrayList<>();
+		this.taskManagerPodDecorators = new ArrayList<>();
 	}
 
 	@Override
@@ -73,6 +78,8 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 
 		this.clusterPodDecorators.add(new PodInitializerDecorator());
 		this.clusterPodDecorators.add(new JobManagerPodDecorator());
+
+		this.taskManagerPodDecorators.add(new PodInitializerDecorator());
 	}
 
 	@Override
@@ -84,6 +91,26 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 		}
 
 		this.internalClient.pods().create(pod.getInternalResource());
+	}
+
+	@Override
+	public String createTaskManagerPod(String podName, ResourceProfile resourceProfile) {
+		FlinkPod pod = new FlinkPod(this.flinkKubeOptions);
+
+		for (Decorator<Pod, FlinkPod> d : this.taskManagerPodDecorators) {
+			pod = d.decorate(pod);
+		}
+
+		pod = new TaskManagerDecorator(podName).decorate(pod);
+
+		this.internalClient.pods().create(pod.getInternalResource());
+
+		return podName;
+	}
+
+	@Override
+	public boolean stopPod(String podName) {
+		return this.internalClient.pods().withName(podName).delete();
 	}
 
 	/**
@@ -132,7 +159,7 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 
 	@Override
 	public void logException(Exception e) {
-
+		LOG.error("Kubernetes Exception: {}", e);
 	}
 
 	@Override

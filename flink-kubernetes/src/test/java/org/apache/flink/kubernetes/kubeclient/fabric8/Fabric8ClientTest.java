@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Tests for Fabric implementation of KubeClient.
+ * Tests for Fabric implementation of {@link org.apache.flink.kubernetes.kubeclient.KubeClient}.
  * */
 public class Fabric8ClientTest {
 
