@@ -19,16 +19,19 @@
 package org.apache.flink.kubernetes.kubeclient.fabric8.decorators;
 
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
+import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.fabric8.FlinkPod;
 import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Task manager specific pod configuration.
@@ -37,11 +40,11 @@ public class TaskManagerDecorator extends Decorator<Pod, FlinkPod> {
 
 	private static final String CONTAINER_NAME = "TaskManager";
 
-	private String podName;
+	TaskManagerPodParameter parameter;
 
-	public TaskManagerDecorator(String podName) {
-		Preconditions.checkNotNull(podName);
-		this.podName = podName;
+	public TaskManagerDecorator(TaskManagerPodParameter parameters) {
+		Preconditions.checkNotNull(parameters);
+		this.parameter = parameters;
 	}
 
 	@Override
@@ -55,12 +58,18 @@ public class TaskManagerDecorator extends Decorator<Pod, FlinkPod> {
 			.toLabels();
 
 		resource.getMetadata().setLabels(labels);
-		resource.getMetadata().setName(this.podName);
+		resource.getMetadata().setName(this.parameter.getPodName());
 
 		Container container = new ContainerBuilder()
 			.withName(CONTAINER_NAME)
 			.withImage(flinkKubernetesOptions.getImageName())
 			.withImagePullPolicy("IfNotPresent")
+			.withArgs(this.parameter.getArgs())
+			.withEnv(this.parameter.getEnvironmentVariables()
+				.entrySet()
+				.stream()
+				.map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null))
+				.collect(Collectors.toList()))
 			.build();
 
 		resource.setSpec(new PodSpecBuilder().withContainers(Arrays.asList(container)).build());

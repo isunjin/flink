@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -31,8 +32,8 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -40,18 +41,11 @@ import javax.annotation.Nullable;
  */
 public class KubernetesResourceManagerFactory implements ResourceManagerFactory<KubernetesResourceManager.KubernetesWorkerNode> {
 
-	@Nonnull
-	private final String imageName;
+	private final FlinkKubernetesOptions flinkKubernetesOptions;
 
-	@Nonnull
-	private final String clusterId;
-
-	private final String serviceUid;
-
-	public KubernetesResourceManagerFactory(@Nonnull String imageName, @Nonnull String clusterId, String serviceUid) {
-		this.imageName = imageName;
-		this.clusterId = clusterId;
-		this.serviceUid = serviceUid;
+	public KubernetesResourceManagerFactory(FlinkKubernetesOptions flinkKubernetesOptions) {
+		Preconditions.checkNotNull(flinkKubernetesOptions);
+		this.flinkKubernetesOptions = flinkKubernetesOptions;
 	}
 
 	@Override
@@ -73,7 +67,7 @@ public class KubernetesResourceManagerFactory implements ResourceManagerFactory<
 			rpcService.getScheduledExecutor());
 
 		return new KubernetesResourceManager(
-			configuration,
+			this.flinkKubernetesOptions,
 			rpcService,
 			ResourceManager.RESOURCE_MANAGER_NAME,
 			resourceId,
@@ -84,9 +78,6 @@ public class KubernetesResourceManagerFactory implements ResourceManagerFactory<
 			rmRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
-			clusterId,
-			imageName,
-			this.serviceUid,
 			jobManagerMetricGroup);
 	}
 }

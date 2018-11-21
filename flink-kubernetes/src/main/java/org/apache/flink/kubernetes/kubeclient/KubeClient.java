@@ -18,8 +18,6 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -45,7 +43,7 @@ public interface KubeClient extends AutoCloseable {
 	/**
 	 * Create task manager pod.
 	 * */
-	String createTaskManagerPod(String podName, ResourceProfile resourceProfile);
+	String createTaskManagerPod(TaskManagerPodParameter parameter);
 
 	/**
 	 * stop a pod.

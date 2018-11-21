@@ -19,24 +19,26 @@
 package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.kubernetes.FlinkKubernetesOptions;
+import org.apache.flink.kubernetes.resourcemanager.KubernetesResourceManagerFactory;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceManagerComponentFactory;
 
 /**
  * Entrypoint for a Kubernetes session cluster.
  */
 public class KubernetesSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
-	public KubernetesSessionClusterEntrypoint(Configuration configuration) {
-		super(configuration);
+	private final FlinkKubernetesOptions options;
+
+	public KubernetesSessionClusterEntrypoint(FlinkKubernetesOptions options) {
+		super(options.getConfiguration());
+		this.options = options;
 	}
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return null;
-	}
-
-	public static void main(String[] args) {
-		LOG.info("Started {}.", KubernetesSessionClusterEntrypoint.class.getSimpleName());
+		return new SessionDispatcherResourceManagerComponentFactory(new KubernetesResourceManagerFactory(this.options));
 	}
 }

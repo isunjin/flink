@@ -23,6 +23,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 import org.apache.flink.kubernetes.kubeclient.KubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
+import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -45,7 +46,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -58,6 +62,8 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesResourceManager.class);
 
 	public static final String TASKMANAGER_ID_PREFIX = "flink-taskmanager-";
+
+	public static final String ENV_RESOURCE_ID = "RESOURCE_ID";
 
 	private final ConcurrentMap<ResourceID, KubernetesWorkerNode> workerNodeMap;
 
@@ -110,7 +116,24 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 		LOG.info("creating new worker, worker podName: {}", podName);
 
 		try {
-			this.kubeClient.createTaskManagerPod(podName, resourceProfile);
+			List<String> args = Arrays.asList(
+				"taskmanager",
+				" -D",
+				"jobmanager.rpc.address=" + getRpcService().getAddress(),
+				" -D",
+				"jobmanager.rpc.port=" + getRpcService().getPort()
+			);
+
+			HashMap<String, String> env = new HashMap<>();
+			env.put(ENV_RESOURCE_ID, podName);
+
+			TaskManagerPodParameter parameter = new TaskManagerPodParameter(
+				podName,
+				args,
+				resourceProfile,
+				env);
+
+			this.kubeClient.createTaskManagerPod(parameter);
 			KubernetesWorkerNode worker = new KubernetesWorkerNode(new ResourceID(podName));
 			workerNodeMap.put(worker.getResourceID(), worker);
 			return slotsPerWorker;
