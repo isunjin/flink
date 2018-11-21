@@ -22,6 +22,8 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.cli.Option;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -38,6 +40,22 @@ public class FlinkKubernetesOptions {
 		key("jobmanager.k8s.externalip")
 			.defaultValue("")
 			.withDescription("The external ip for job manager external IP.");
+
+	public static final Option IMAGE_OPTION = Option.builder("i")
+		.longOpt("image")
+		.required(true)
+		.hasArg(true)
+		.argName("imagename")
+		.desc("the docker image name.")
+		.build();
+
+	public static final Option CLUSTERID_OPTION = Option.builder("cid")
+		.longOpt("clusterid")
+		.required(true)
+		.hasArg(true)
+		.argName("clusterid")
+		.desc("the cluster id that will be used in namespace")
+		.build();
 
 	private Configuration configuration;
 
@@ -65,6 +83,10 @@ public class FlinkKubernetesOptions {
 
 	public String getImageName(){
 		return this.imageName;
+	}
+
+	public void setImageName(String imageName) {
+		this.imageName = imageName;
 	}
 
 	public String getNamespace() {
