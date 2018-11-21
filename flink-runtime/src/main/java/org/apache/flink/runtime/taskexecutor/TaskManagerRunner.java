@@ -309,7 +309,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		}
 	}
 
-	private static Configuration loadConfiguration(String[] args) throws FlinkParseException {
+	protected static Configuration loadConfiguration(String[] args) throws FlinkParseException {
 		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
 
 		final ClusterConfiguration clusterConfiguration;

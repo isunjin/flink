@@ -42,6 +42,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -49,6 +50,8 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -111,11 +114,11 @@ public class KubernetesResourceManagerTest {
 		return flinkKubeClient;
 	}
 
-	private KubernetesResourceManager createResourceManager(FlinkKubernetesOptions options) throws Exception{
+	private KubernetesResourceManager createResourceManager(FlinkKubernetesOptions options) throws Exception {
 
 		KubeClientFactory.setkubernetesClient(server.getClient());
 
-		TestingRpcService rpcService = new TestingRpcService();
+		TestingRpcService rpcService = new TestingRpcService(options.getConfiguration());
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		MockResourceManagerRuntimeServices rmServices = new MockResourceManagerRuntimeServices(rpcService);
 		return new KubernetesResourceManager(
@@ -131,12 +134,13 @@ public class KubernetesResourceManagerTest {
 			new ClusterInformation("localhost", 1234),
 			testingFatalErrorHandler,
 			mockJMMetricGroup
-			);
+		);
 	}
 
 	@Test
 	public void testCreateWorker() throws Exception {
-		FlinkKubernetesOptions options = new FlinkKubernetesOptions(new Configuration(), "abc");
+		Configuration configuration = new Configuration();
+		FlinkKubernetesOptions options = new FlinkKubernetesOptions(configuration, "abc");
 		options.setNamespace("test");
 		KubernetesResourceManager resourceManager = this.createResourceManager(options);
 		ResourceProfile profile = new ResourceProfile(1.1, 2);
@@ -151,10 +155,31 @@ public class KubernetesResourceManagerTest {
 
 		Assert.assertTrue(pod.getMetadata().getName().startsWith(KubernetesResourceManager.TASKMANAGER_ID_PREFIX));
 		Assert.assertEquals(1, pod.getSpec().getContainers().size());
+
+		//checkArguments
+		List<String> args = Arrays.asList(
+			"taskmanager",
+			" -D",
+			"jobmanager.rpc.address=" + resourceManager.getRpcService().getAddress(),
+			" -D",
+			"jobmanager.rpc.port=" + resourceManager.getRpcService().getPort()
+		);
+
+		Assert.assertArrayEquals(args.toArray(), pod.getSpec().getContainers().get(0).getArgs().toArray());
+
+		EnvVar[] expectedEnv = new EnvVar[]{new EnvVar(KubernetesResourceManager.ENV_RESOURCE_ID, pod.getMetadata().getName(), null)};
+
+		Assert.assertArrayEquals(expectedEnv, pod
+			.getSpec()
+			.getContainers()
+			.get(0)
+			.getEnv()
+			.stream()
+			.toArray(EnvVar[]::new));
 	}
 
 	@Test
-	public void testStopWorker() throws  Exception {
+	public void testStopWorker() throws Exception {
 		FlinkKubernetesOptions options = new FlinkKubernetesOptions(new Configuration(), "abc");
 		options.setNamespace("test");
 		KubernetesResourceManager resourceManager = this.createResourceManager(options);

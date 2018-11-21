@@ -22,6 +22,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.KubeClient;
+import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.Decorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ExternalIPDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.JobManagerPodDecorator;
@@ -30,7 +31,6 @@ import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.PodInitializerD
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServiceInitializerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServicePortDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.TaskManagerDecorator;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
@@ -94,18 +94,18 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 	}
 
 	@Override
-	public String createTaskManagerPod(String podName, ResourceProfile resourceProfile) {
+	public String createTaskManagerPod(TaskManagerPodParameter parameter) {
 		FlinkPod pod = new FlinkPod(this.flinkKubeOptions);
 
 		for (Decorator<Pod, FlinkPod> d : this.taskManagerPodDecorators) {
 			pod = d.decorate(pod);
 		}
 
-		pod = new TaskManagerDecorator(podName).decorate(pod);
+		pod = new TaskManagerDecorator(parameter).decorate(pod);
 
 		this.internalClient.pods().create(pod.getInternalResource());
 
-		return podName;
+		return parameter.getPodName();
 	}
 
 	@Override
