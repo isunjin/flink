@@ -20,11 +20,20 @@ package org.apache.flink.kubernetes;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 
+import java.util.Properties;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.HOST_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST_PORT_OPTION;
 
 /**
  * Parameters that will be used in Flink on k8s cluster.
@@ -45,7 +54,7 @@ public class FlinkKubernetesOptions {
 		.longOpt("image")
 		.required(true)
 		.hasArg(true)
-		.argName("imagename")
+		.argName("image-name")
 		.desc("the docker image name.")
 		.build();
 
@@ -55,6 +64,28 @@ public class FlinkKubernetesOptions {
 		.hasArg(true)
 		.argName("clusterid")
 		.desc("the cluster id that will be used in namespace")
+		.build();
+
+	public static final Option KUBERNETES_CONFIG_FILE_OPTION = Option.builder("kc")
+		.longOpt("kubeConfig")
+		.required(false)
+		.hasArg(true)
+		.argName("ConfigFilePath")
+		.desc("The config file to for K8s API client.")
+		.build();
+
+	public static final Option KUBERNETES_MODE_OPTION = Option.builder("k8s")
+		.longOpt("KubernetesMode")
+		.required(false)
+		.hasArg(false)
+		.desc("Whether use Kubernetes as resource manager.")
+		.build();
+
+	public static final Option HELP_OPTION = Option.builder("h")
+		.longOpt("help")
+		.required(false)
+		.hasArg(false)
+		.desc("Help for Kubernetes session CLI.")
 		.build();
 
 	private Configuration configuration;
@@ -119,5 +150,34 @@ public class FlinkKubernetesOptions {
 
 	public void setKubeConfigFileName(String kubeConfigFileName) {
 		this.kubeConfigFileName = kubeConfigFileName;
+	}
+
+	/**
+	 * build FlinkKubernetesOption from commandline.
+	 * */
+	public static FlinkKubernetesOptions fromCommandLine(CommandLine commandLine){
+		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
+		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
+		int restPort = Integer.parseInt(restPortString);
+		String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
+		final String imageName = commandLine.getOptionValue(IMAGE_OPTION.getOpt());
+		final String clusterId = commandLine.getOptionValue(CLUSTERID_OPTION.getOpt());
+
+		hostname = hostname == null ? clusterId : hostname;
+		Configuration configuration = GlobalConfiguration
+			.loadConfigurationWithDynamicProperties(ConfigurationUtils.createConfiguration(dynamicProperties));
+
+		configuration.setString(RestOptions.ADDRESS, hostname);
+
+		if (restPort == -1) {
+			restPort = RestOptions.PORT.defaultValue();
+		}
+
+		configuration.setInteger(RestOptions.PORT, restPort);
+
+		FlinkKubernetesOptions options = new FlinkKubernetesOptions(configuration, clusterId);
+		options.setImageName(imageName);
+
+		return options;
 	}
 }

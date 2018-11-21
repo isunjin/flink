@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -34,6 +35,11 @@ public interface KubeClient extends AutoCloseable {
 	 * Create kubernetes services and expose endpoints for access outside cluster.
 	 */
 	CompletableFuture<Endpoint> createClusterService(String clusterId) throws Exception;
+
+	/**
+	 * List all running sessions in current kubernetes cluster.
+	 * */
+	List<String> listFlinkClusters();
 
 	/**
 	 * Create cluster pod.

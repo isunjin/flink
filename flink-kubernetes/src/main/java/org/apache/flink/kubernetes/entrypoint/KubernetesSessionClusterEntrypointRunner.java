@@ -18,10 +18,6 @@
 
 package org.apache.flink.kubernetes.entrypoint;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 
@@ -29,8 +25,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
 import javax.annotation.Nonnull;
-
-import java.util.Properties;
 
 import static org.apache.flink.kubernetes.FlinkKubernetesOptions.CLUSTERID_OPTION;
 import static org.apache.flink.kubernetes.FlinkKubernetesOptions.IMAGE_OPTION;
@@ -61,29 +55,7 @@ public class KubernetesSessionClusterEntrypointRunner extends ClusterEntrypointR
 
 	@Override
 	public FlinkKubernetesOptions createResult(@Nonnull CommandLine commandLine) {
-		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
-		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
-		int restPort = Integer.parseInt(restPortString);
-		String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
-		final String imageName = commandLine.getOptionValue(IMAGE_OPTION.getOpt());
-		final String clusterId = commandLine.getOptionValue(CLUSTERID_OPTION.getOpt());
-
-		hostname = hostname == null ? clusterId : hostname;
-		Configuration configuration = GlobalConfiguration
-			.loadConfigurationWithDynamicProperties(ConfigurationUtils.createConfiguration(dynamicProperties));
-
-		configuration.setString(RestOptions.ADDRESS, hostname);
-
-		if (restPort == -1) {
-			restPort = RestOptions.PORT.defaultValue();
-		}
-
-		configuration.setInteger(RestOptions.PORT, restPort);
-
-		FlinkKubernetesOptions options = new FlinkKubernetesOptions(configuration, clusterId);
-		options.setImageName(imageName);
-
-		return options;
+		return FlinkKubernetesOptions.fromCommandLine(commandLine);
 	}
 
 	public static void main(String[] args) {

@@ -153,6 +153,11 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 	}
 
 	@Override
+	public List<String> listFlinkClusters() {
+		return null;
+	}
+
+	@Override
 	public void stopAndCleanupCluster(String clusterId) {
 		this.internalClient.services().withName(clusterId).delete();
 	}

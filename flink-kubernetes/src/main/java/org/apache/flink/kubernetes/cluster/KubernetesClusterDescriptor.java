@@ -29,6 +29,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.KubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 
@@ -56,6 +57,10 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	private FlinkKubernetesOptions options;
 
 	private KubeClient client;
+
+	public KubernetesClusterDescriptor(@Nonnull FlinkKubernetesOptions options) {
+		this(options, KubeClientFactory.fromConfiguration(options));
+	}
 
 	public KubernetesClusterDescriptor(@Nonnull FlinkKubernetesOptions options, @Nonnull KubeClient client) {
 		this.options = options;
