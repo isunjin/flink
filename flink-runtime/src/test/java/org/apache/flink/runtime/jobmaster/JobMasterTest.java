@@ -91,8 +91,8 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.query.KvStateLocation;
@@ -1643,10 +1643,10 @@ public class JobMasterTest extends TestLogger {
 
 	@Nonnull
 	private JobMaster createJobMaster(
-			Configuration configuration,
-			JobGraph jobGraph,
-			HighAvailabilityServices highAvailabilityServices,
-			JobManagerSharedServices jobManagerSharedServices) throws Exception {
+		Configuration configuration,
+		JobGraph jobGraph,
+		HighAvailabilityServices highAvailabilityServices,
+		JobManagerSharedServices jobManagerSharedServices) throws Exception {
 		return createJobMaster(
 			configuration,
 			jobGraph,
@@ -1657,11 +1657,11 @@ public class JobMasterTest extends TestLogger {
 
 	@Nonnull
 	private JobMaster createJobMaster(
-			Configuration configuration,
-			JobGraph jobGraph,
-			HighAvailabilityServices highAvailabilityServices,
-			JobManagerSharedServices jobManagerSharedServices,
-			HeartbeatServices heartbeatServices) throws Exception {
+		Configuration configuration,
+		JobGraph jobGraph,
+		HighAvailabilityServices highAvailabilityServices,
+		JobManagerSharedServices jobManagerSharedServices,
+		HeartbeatServices heartbeatServices) throws Exception {
 
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
