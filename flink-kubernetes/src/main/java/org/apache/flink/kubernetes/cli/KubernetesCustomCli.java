@@ -28,6 +28,7 @@ import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -304,7 +305,26 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		ClusterDescriptor<String> cluster = this.createClusterDescriptor(cmd);
 		final ClusterSpecification clusterSpecification = getClusterSpecification(cmd);
-		cluster.deploySessionCluster(clusterSpecification);
+		ClusterClient<String> clusterClient = cluster.deploySessionCluster(clusterSpecification);
+		Configuration config = clusterClient.getFlinkConfiguration();
+		System.out.println("==============================================");
+
+		String url = String.format("http://%s:%d/#/overview"
+			, config.getString(JobManagerOptions.ADDRESS)
+			, config.getInteger(JobManagerOptions.PORT));
+
+		System.out.println("Cluster started, web portal: " + url);
+
+		try
+		{
+			System.out.println("Waiting for Job manager starting");
+			Thread.sleep(5000);
+			Runtime rt = Runtime.getRuntime();
+			rt.exec("open " + url);
+		}
+		catch (Exception e){
+			System.out.println(e);
+		}
 
 		return 0;
 	}

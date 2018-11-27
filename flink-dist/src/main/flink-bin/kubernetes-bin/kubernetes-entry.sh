@@ -17,24 +17,49 @@
 # limitations under the License.
 ################################################################################
 
+USAGE="Usage: k8s-entry.sh (cluster|taskmanager|job) [args]"
+
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 # get Flink config
 . "$bin"/config.sh
 
+MODE=$1
+ARGS=("${@:2}" "--configDir" "${FLINK_CONF_DIR}")
+
 if [ "$FLINK_IDENT_STRING" = "" ]; then
-        FLINK_IDENT_STRING="$USER"
+    FLINK_IDENT_STRING="$USER"
 fi
 
-JVM_ARGS="$JVM_ARGS -Xmx512m"
-
+EXTRA_CLASSPATH="$FLINK_HOME/libs/classes"
 CC_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPATHS`
+CC_CLASSPATH="$EXTRA_CLASSPATH:$CC_CLASSPATH"
 
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-k8s-session-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-k8s-session.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-k8s.xml"
+log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-kubernetes-appmaster-${HOSTNAME}.log"
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-console.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-console.xml"
 
 export FLINK_CONF_DIR
+export FLINK_BIN_DIR
+export FLINK_LIB_DIR
 
-$JAVA_RUN$JAVA_RUN $JVM_ARGS -classpath "$CC_CLASSPATH" $log_setting org.apache.flink.kubernetes.cli.KubernetesCustomCli -j "$FLINK_LIB_DIR"/flink-dist*.jar "$@"
+ENTRY_POINT=org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypointRunner
 
+if [ "$MODE" = "taskmanager" ]; then
+    ENTRY_POINT=org.apache.flink.kubernetes.taskmanager.KubernetesTaskManagerRunner
+elif [ "$MODE" = "job" ]; then
+    ENTRY_POINT=org.apache.flink.kubernetes.entrypoint.KubernetesJobClusterEntrypoint
+fi
+
+# Evaluate user options for local variable expansion
+FLINK_ENV_JAVA_OPTS=$(eval echo ${FLINK_ENV_JAVA_OPTS})
+
+exec $JAVA_RUN $JVM_ARGS $FLINK_ENV_JAVA_OPTS -classpath "$CC_CLASSPATH" $log_setting ${ENTRY_POINT} "${ARGS[@]}"
+
+rc=$?
+
+if [[ $rc -ne 0 ]]; then
+    echo "Error while starting the Kubernetes session cluster entry point. Please check ${log} for more details."
+fi
+
+exit $rc

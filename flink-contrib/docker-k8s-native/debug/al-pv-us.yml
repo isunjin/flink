@@ -11,8 +11,8 @@ spec:
   flexVolume:
     driver: "alicloud/oss"
     options:
-      bucket: "maxflink"
-      url: "oss-cn-hangzhou-internal.aliyuncs.com"
+      bucket: "maxflink-us"
+      url: "oss-us-west-1-internal.aliyuncs.com"
       akId: LTAIK6K5aDNspem1
       akSecret: mARIxPR3pY9WXPhPQVaHDroP809rIE
       otherOpts: "-o max_stat_cache_size=0 -o allow_other"

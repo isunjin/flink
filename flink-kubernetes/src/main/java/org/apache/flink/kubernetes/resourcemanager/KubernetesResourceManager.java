@@ -95,6 +95,8 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesResourceManager.class);
 
+	private String namespace = null;
+
 	public KubernetesResourceManager(
 		Configuration flinkConfig,
 		RpcService rpcService,
@@ -122,6 +124,7 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 
 		int numberOfTaskSlots = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 		this.slotsPerWorker = createSlotsPerWorker(numberOfTaskSlots);
+		this.namespace = flinkConfig.getString("k8s.namespace", "default");
 		log.warn("constructor config");
 	}
 
@@ -137,6 +140,8 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 				log.warn("cluster config");
 				apiClient = Config.fromCluster();
 			}
+
+			//pull namespace
 		} catch (IOException e) {
 			throw new ResourceManagerException("Could not create the Kubernetes ApiClient.", e);
 		}
@@ -161,7 +166,7 @@ public class KubernetesResourceManager extends ResourceManager<KubernetesResourc
 		V1Pod pod = createTaskManagerPodManifest(podName, resourceProfile);
 		log.debug(String.format("Creating pod %s:\n%s", podName, pod));
 		try {
-			pod = kubernetesApi.createNamespacedPod("default", pod, "true");
+			pod = kubernetesApi.createNamespacedPod(this.namespace, pod, "true");
 		} catch (ApiException e) {
 			throw new RuntimeException("Failed to start task manager pod" + e.getResponseBody(), e);
 		}

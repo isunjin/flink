@@ -292,6 +292,9 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			args.add("-uid");
 			args.add(service1.getMetadata().getUid());
 
+			//args.add(" -D");
+			//args.add("k8s.namespace=");
+
 			V1Container clusterContainer = new V1Container()
 				.name(clusterId)
 				.image(imageName)
