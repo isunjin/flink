@@ -53,10 +53,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -307,8 +304,8 @@ public final class WebMonitorUtils {
 		int numTotalTasks = 0;
 
 		for (AccessExecutionJobVertex ejv : job.getVerticesTopologically()) {
-			AccessExecutionVertex[] vertices = ejv.getTaskVertices();
-			numTotalTasks += vertices.length;
+			ArrayList<AccessExecutionVertex> vertices = ejv.getTaskVertices();
+			numTotalTasks += vertices.size();
 
 			for (AccessExecutionVertex vertex : vertices) {
 				ExecutionState state = vertex.getExecutionState();

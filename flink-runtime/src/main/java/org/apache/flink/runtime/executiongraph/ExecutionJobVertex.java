@@ -105,7 +105,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 */
 	private final List<OperatorID> userDefinedOperatorIds;
 
-	private final ExecutionVertex[] taskVertices;
+	private final ArrayList<ExecutionVertex> taskVertices;
 
 	private final IntermediateResult[] producedDataSets;
 
@@ -195,7 +195,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		this.serializedTaskInformation = null;
 
-		this.taskVertices = new ExecutionVertex[numTaskVertices];
+		this.taskVertices = new ArrayList<>(numTaskVertices);
 		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
 		this.userDefinedOperatorIds = Collections.unmodifiableList(jobVertex.getUserDefinedOperatorIDs());
 
@@ -232,15 +232,15 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
 			ExecutionVertex vertex = new ExecutionVertex(
-					this,
-					i,
-					producedDataSets,
-					timeout,
-					initialGlobalModVersion,
-					createTimestamp,
-					maxPriorAttemptsHistoryLength);
+				this,
+				i,
+				producedDataSets,
+				timeout,
+				initialGlobalModVersion,
+				createTimestamp,
+				maxPriorAttemptsHistoryLength);
 
-			this.taskVertices[i] = vertex;
+			this.taskVertices.set(i, vertex);
 		}
 
 		// sanity check for the double referencing between intermediate result partitions and execution vertices
@@ -355,7 +355,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	}
 	
 	@Override
-	public ExecutionVertex[] getTaskVertices() {
+	public ArrayList<ExecutionVertex> getTaskVertices() {
 		return taskVertices;
 	}
 	
@@ -470,8 +470,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		this.edgeManagers.set(num, edgeManager);
 
 		for (int i = 0; i < parallelism; i++) {
-			ExecutionVertex ev = taskVertices[i];
-			edgeManager.connectSource(ev, num, consumerIndex);
+			ExecutionVertex ev = taskVertices.get(i);
+			edgeManager.connectSource(ev);
 		}
 	}
 
@@ -486,8 +486,78 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		this.connectPredecessor(intermediateDataSets, edge, inputNum);
 	}
 
+	//TODO: COMPLETE THE LOGIC
 	public void disconnectPredecessor(JobEdge edge){
 
+	}
+
+	//TODO: COMPLETE THE LOGIC
+	private ExecutionVertex createExecutionVertex(int index){
+		/*ExecutionVertex vertex = new ExecutionVertex(
+			this,
+			i,
+			producedDataSets,
+			timeout,
+			initialGlobalModVersion,
+			createTimestamp,
+			maxPriorAttemptsHistoryLength);*/
+
+		return null;
+	}
+
+	//TODO: COMPLETE THE LOGIC
+	/**for dynamic parallelism*/
+	private void adjustProducedDataSet(int newParallelism){
+		for(IntermediateResult result: this.producedDataSets){
+			result.adjustPartitionCount(newParallelism);
+		}
+	}
+
+	//TODO: COMPLETE THE LOGIC
+	/**for dynamic parallelism*/
+	public void adjustParallelism(int newParallelism) {
+		//ensure all edge has dynamic/or edge manager as a first-citizen
+		int currentParallelism = this.taskVertices.size();
+
+		if (newParallelism == currentParallelism) {
+			return;
+		}
+
+		//adjust dataset first
+		//if we add new tasks, we will create a empty partition, and the partition
+		// will be added while new execution vertex created
+		this.adjustProducedDataSet(newParallelism);
+
+		if (newParallelism > currentParallelism) {
+			this.taskVertices.ensureCapacity(newParallelism);
+
+			//adjust execution vertex count
+			for (int i = 0; i < newParallelism; i++) {
+				ExecutionVertex task = this.createExecutionVertex(i);
+				this.taskVertices.set(i, task);
+
+				for(EdgeManager manager: this.edgeManagers){
+					//invoke change
+					manager.onExecutionVertexAdded(task);
+					//also a partition will be added
+				}
+			}
+
+			//adjust partition count
+		} else {
+			//adjust execution vertex count
+			for (int i = currentParallelism - 1; i >= newParallelism; i--) {
+
+				for(EdgeManager manager: this.edgeManagers){
+					//invoke change
+					manager.onExecutionVertexRemoved(this.taskVertices.get(i));
+				}
+
+				//this is a O(1) operation
+
+				this.taskVertices.remove(i);
+			}
+		}
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -507,9 +577,9 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint) {
 		
-		final ExecutionVertex[] vertices = this.taskVertices;
+		final List<ExecutionVertex> vertices = this.taskVertices;
 
-		final ArrayList<CompletableFuture<Void>> scheduleFutures = new ArrayList<>(vertices.length);
+		final ArrayList<CompletableFuture<Void>> scheduleFutures = new ArrayList<>(vertices.size());
 
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
@@ -536,14 +606,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			Time allocationTimeout) {
-		final ExecutionVertex[] vertices = this.taskVertices;
-		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
+		final List<ExecutionVertex> vertices = this.taskVertices;
+		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.size()];
 
 		// try to acquire a slot future for each execution.
 		// we store the execution with the future just to be on the safe side
-		for (int i = 0; i < vertices.length; i++) {
+		for (int i = 0; i < vertices.size(); i++) {
 			// allocate the next slot (future)
-			final Execution exec = vertices[i].getCurrentExecutionAttempt();
+			final Execution exec = vertices.get(i).getCurrentExecutionAttempt();
 			final CompletableFuture<Execution> allocationFuture = exec.allocateAndAssignSlotForExecution(
 				resourceProvider,
 				queued,
@@ -572,7 +642,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 */
 	public CompletableFuture<Void> cancelWithFuture() {
 		// we collect all futures from the task cancellations
-		CompletableFuture<ExecutionState>[] futures = Arrays.stream(getTaskVertices())
+		CompletableFuture<ExecutionState>[] futures = getTaskVertices().stream()
 			.map(ExecutionVertex::cancel)
 			.<CompletableFuture<ExecutionState>>toArray(CompletableFuture[]::new);
 
@@ -596,7 +666,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			}
 
 			for (int i = 0; i < parallelism; i++) {
-				taskVertices[i].resetForNewExecution(timestamp, expectedGlobalModVersion);
+				taskVertices.get(i).resetForNewExecution(timestamp, expectedGlobalModVersion);
 			}
 
 			// set up the input splits again

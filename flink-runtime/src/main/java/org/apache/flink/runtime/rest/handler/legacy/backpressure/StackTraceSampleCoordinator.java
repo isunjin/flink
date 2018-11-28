@@ -32,14 +32,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -105,29 +98,29 @@ public class StackTraceSampleCoordinator {
 	 */
 	@SuppressWarnings("unchecked")
 	public CompletableFuture<StackTraceSample> triggerStackTraceSample(
-			ExecutionVertex[] tasksToSample,
+			ArrayList<ExecutionVertex> tasksToSample,
 			int numSamples,
 			Time delayBetweenSamples,
 			int maxStackTraceDepth) {
 
 		checkNotNull(tasksToSample, "Tasks to sample");
-		checkArgument(tasksToSample.length >= 1, "No tasks to sample");
+		checkArgument(tasksToSample.size() >= 1, "No tasks to sample");
 		checkArgument(numSamples >= 1, "No number of samples");
 		checkArgument(maxStackTraceDepth >= 0, "Negative maximum stack trace depth");
 
 		// Execution IDs of running tasks
-		ExecutionAttemptID[] triggerIds = new ExecutionAttemptID[tasksToSample.length];
-		Execution[] executions = new Execution[tasksToSample.length];
+		ExecutionAttemptID[] triggerIds = new ExecutionAttemptID[tasksToSample.size()];
+		Execution[] executions = new Execution[tasksToSample.size()];
 
 		// Check that all tasks are RUNNING before triggering anything. The
 		// triggering can still fail.
 		for (int i = 0; i < triggerIds.length; i++) {
-			Execution execution = tasksToSample[i].getCurrentExecutionAttempt();
+			Execution execution = tasksToSample.get(i).getCurrentExecutionAttempt();
 			if (execution != null && execution.getState() == ExecutionState.RUNNING) {
 				executions[i] = execution;
 				triggerIds[i] = execution.getAttemptId();
 			} else {
-				return FutureUtils.completedExceptionally(new IllegalStateException("Task " + tasksToSample[i]
+				return FutureUtils.completedExceptionally(new IllegalStateException("Task " + tasksToSample.get(i)
 					.getTaskNameWithSubtaskIndex() + " is not running."));
 			}
 		}

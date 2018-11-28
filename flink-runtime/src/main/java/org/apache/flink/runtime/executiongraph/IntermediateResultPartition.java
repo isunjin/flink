@@ -88,12 +88,18 @@ public class IntermediateResultPartition {
 		consumers.get(consumerNumber).add(edge);
 	}
 
+	//TODO: COMPLETE THE LOGIC
+	public void removeConsumer(ExecutionEdge edge, int consumerNumber) {
+		consumers.get(consumerNumber).remove(edge.getTarget().getParallelSubtaskIndex());
+	}
+
 	boolean markFinished() {
 		// Sanity check that this is only called on blocking partitions.
 		if (!getResultType().isBlocking()) {
 			throw new IllegalStateException("Tried to mark a non-blocking result partition as finished");
 		}
 
+		//TODO: COMPLETE THE LOGIC
 		this.totalResult.onPartitionProduced(this);
 
 		final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();

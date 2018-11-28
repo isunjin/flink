@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -25,7 +26,8 @@ class AllVerticesIterator implements Iterator<ExecutionVertex> {
 
 	private final Iterator<ExecutionJobVertex> jobVertices;
 	
-	private ExecutionVertex[] currVertices;
+	private ArrayList<ExecutionVertex> currVertices;
+
 	
 	private int currPos;
 	
@@ -39,7 +41,7 @@ class AllVerticesIterator implements Iterator<ExecutionVertex> {
 	public boolean hasNext() {
 		while (true) {
 			if (currVertices != null) {
-				if (currPos < currVertices.length) {
+				if (currPos < currVertices.size()) {
 					return true;
 				} else {
 					currVertices = null;
@@ -58,7 +60,7 @@ class AllVerticesIterator implements Iterator<ExecutionVertex> {
 	@Override
 	public ExecutionVertex next() {
 		if (hasNext()) {
-			return currVertices[currPos++];
+			return currVertices.get(currPos++);
 		} else {
 			throw new NoSuchElementException();
 		}

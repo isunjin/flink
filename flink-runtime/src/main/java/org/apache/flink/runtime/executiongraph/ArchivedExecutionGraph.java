@@ -254,7 +254,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
 		private final Iterator<ArchivedExecutionJobVertex> jobVertices;
 
-		private ArchivedExecutionVertex[] currVertices;
+		private List<ArchivedExecutionVertex> currVertices;
 
 		private int currPos;
 
@@ -266,7 +266,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		public boolean hasNext() {
 			while (true) {
 				if (currVertices != null) {
-					if (currPos < currVertices.length) {
+					if (currPos < currVertices.size()) {
 						return true;
 					} else {
 						currVertices = null;
@@ -283,7 +283,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		@Override
 		public ArchivedExecutionVertex next() {
 			if (hasNext()) {
-				return currVertices[currPos++];
+				return currVertices.get(currPos++);
 			} else {
 				throw new NoSuchElementException();
 			}

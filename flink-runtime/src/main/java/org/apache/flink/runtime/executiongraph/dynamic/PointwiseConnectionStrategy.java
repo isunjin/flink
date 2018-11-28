@@ -1,27 +1,27 @@
 package org.apache.flink.runtime.executiongraph.dynamic;
 
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IntermediateResult;
-import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.executiongraph.*;
+
+import java.util.ArrayList;
 
 public class PointwiseConnectionStrategy extends ConnectionStrategy {
 
-	public PointwiseConnectionStrategy(IntermediateResult source){
-		super(source);
+	public PointwiseConnectionStrategy(IntermediateResult source, ExecutionJobVertex target,
+									   int inputNumber, int consumerNumber){
+		super(source, target, inputNumber, consumerNumber);
 	}
 
 	@Override
-	public ExecutionEdge[] connectSource(ExecutionVertex target, int inputNumber) {
-		final IntermediateResultPartition[] sourcePartitions = source.getPartitions();
+	public void connectToSource(ExecutionVertex task) {
+		/*final ArrayList<IntermediateResultPartition> sourcePartitions = source.getPartitions();
 
-		final int numSources = sourcePartitions.length;
-		final int parallelism = target.getTotalNumberOfParallelSubtasks();
-		int subTaskIndex = target.getParallelSubtaskIndex();
+		final int numSources = sourcePartitions.size();
+		final int parallelism = task.getTotalNumberOfParallelSubtasks();
+		int subTaskIndex = task.getParallelSubtaskIndex();
 
 		// simple case same number of sources as targets
 		if (numSources == parallelism) {
-			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[subTaskIndex], target, inputNumber) };
+			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions.get(subTaskIndex), task, this.inputNumber) };
 		}
 		else if (numSources < parallelism) {
 
@@ -40,7 +40,7 @@ public class PointwiseConnectionStrategy extends ConnectionStrategy {
 				sourcePartition = (int) (subTaskIndex / factor);
 			}
 
-			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[sourcePartition], target, inputNumber) };
+			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[sourcePartition], task, this.inputNumber) };
 		}
 		else {
 			if (numSources % parallelism == 0) {
@@ -50,7 +50,7 @@ public class PointwiseConnectionStrategy extends ConnectionStrategy {
 
 				ExecutionEdge[] edges = new ExecutionEdge[factor];
 				for (int i = 0; i < factor; i++) {
-					edges[i] = new ExecutionEdge(sourcePartitions[startIndex + i], target, inputNumber);
+					edges[i] = new ExecutionEdge(sourcePartitions[startIndex + i], task, this.inputNumber);
 				}
 				return edges;
 			}
@@ -58,17 +58,32 @@ public class PointwiseConnectionStrategy extends ConnectionStrategy {
 				float factor = ((float) numSources) / parallelism;
 
 				int start = (int) (subTaskIndex * factor);
-				int end = (subTaskIndex == target.getTotalNumberOfParallelSubtasks() - 1) ?
-					sourcePartitions.length :
+				int end = (subTaskIndex == task.getTotalNumberOfParallelSubtasks() - 1) ?
+					sourcePartitions.size() :
 					(int) ((subTaskIndex + 1) * factor);
 
 				ExecutionEdge[] edges = new ExecutionEdge[end - start];
 				for (int i = 0; i < edges.length; i++) {
-					edges[i] = new ExecutionEdge(sourcePartitions[start + i], target, inputNumber);
+					edges[i] = new ExecutionEdge(sourcePartitions[start + i], task, this.inputNumber);
 				}
 
 				return edges;
 			}
-		}
+		}*/
+	}
+
+	@Override
+	public void connectToTarget(IntermediateResultPartition data) {
+
+	}
+
+	@Override
+	public void disconnectFromSource(ExecutionVertex task) {
+
+	}
+
+	@Override
+	public void disconnectFromTarget(IntermediateResultPartition data) {
+
 	}
 }

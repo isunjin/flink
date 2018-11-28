@@ -188,7 +188,7 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 				pendingStats.add(vertex);
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Triggering stack trace sample for tasks: " + Arrays.toString(vertex.getTaskVertices()));
+					LOG.debug("Triggering stack trace sample for tasks: " + vertex.getTaskVertices().toString());
 				}
 
 				CompletableFuture<StackTraceSample> sample = coordinator.triggerStackTraceSample(

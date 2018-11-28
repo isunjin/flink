@@ -13,7 +13,7 @@ public class BroadcastEdgeManager extends EdgeManager {
 	}
 
 	@Override
-	public void onPartitionProduced(IntermediateResultPartition partition) {
+	public void onPartitionReady(IntermediateResultPartition partition) {
 
 	}
 

@@ -42,7 +42,7 @@ public class IntermediateResult {
 
 	private List<EdgeManager> edgeManagers;
 
-	private final IntermediateResultPartition[] partitions;
+	private final ArrayList<IntermediateResultPartition> partitions;
 
 	/**
 	 * Maps intermediate result partition IDs to a partition index. This is
@@ -76,7 +76,7 @@ public class IntermediateResult {
 		checkArgument(numParallelProducers >= 1);
 		this.numParallelProducers = numParallelProducers;
 
-		this.partitions = new IntermediateResultPartition[numParallelProducers];
+		this.partitions = new ArrayList<>(numParallelProducers);
 
 		this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
 
@@ -98,11 +98,11 @@ public class IntermediateResult {
 			throw new IllegalArgumentException();
 		}
 
-		if (partitions[partitionNumber] != null) {
+		if (partitions.get(partitionNumber) != null) {
 			throw new IllegalStateException("Partition #" + partitionNumber + " has already been assigned.");
 		}
 
-		partitions[partitionNumber] = partition;
+		partitions.set(partitionNumber, partition);
 		partitionLookupHelper.put(partition.getPartitionId(), partitionNumber);
 		partitionsAssigned++;
 	}
@@ -115,7 +115,7 @@ public class IntermediateResult {
 		return producer;
 	}
 
-	public IntermediateResultPartition[] getPartitions() {
+	public ArrayList<IntermediateResultPartition> getPartitions() {
 		return partitions;
 	}
 
@@ -135,7 +135,7 @@ public class IntermediateResult {
 		// result cannot be found via its registered execution.
 		Integer partitionNumber = partitionLookupHelper.get(checkNotNull(resultPartitionId, "IntermediateResultPartitionID"));
 		if (partitionNumber != null) {
-			return partitions[partitionNumber];
+			return partitions.get(partitionNumber);
 		} else {
 			throw new IllegalArgumentException("Unknown intermediate result partition ID " + resultPartitionId);
 		}
@@ -169,6 +169,31 @@ public class IntermediateResult {
 	public void deregisterConsumer(JobEdge edge){
 
 	}
+
+	public void adjustPartitionCount(int newParallelism) {
+		int currentParallelism = this.partitions.size();
+
+		if (newParallelism == currentParallelism) {
+			return;
+		}
+
+		if (newParallelism > currentParallelism) {
+			this.partitions.ensureCapacity(newParallelism);
+
+			//adjust partition count
+		} else {
+			//adjust execution vertex count
+			for (int i = currentParallelism - 1; i >= newParallelism; i--) {
+				IntermediateResultPartition partition = this.partitions.get(i);
+				for(EdgeManager edgeManager: this.edgeManagers){
+					edgeManager.onPartitionRemoved(partition);
+				}
+				this.partitions.remove(i);
+			}
+		}
+	}
+
+	//---------------------------------------------------------------------------------------------
 
 	public EdgeManager getEdgeManager(int index){
 		Preconditions.checkArgument(index >=0 && index < numConsumers);
@@ -205,7 +230,7 @@ public class IntermediateResult {
 	public void onPartitionProduced(IntermediateResultPartition partition) {
 		for (EdgeManager edgeManager : this.edgeManagers) {
 			if (edgeManager != null) {
-				edgeManager.onPartitionProduced(partition);
+				edgeManager.onPartitionReady(partition);
 			}
 		}
 	}

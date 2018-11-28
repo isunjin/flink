@@ -57,7 +57,7 @@ public abstract class AbstractSubtaskRequestHandler extends AbstractJobVertexReq
 			return FutureUtils.completedExceptionally(new FlinkException("subtask does not exist: " + subtask));
 		}
 
-		final AccessExecutionVertex vertex = jobVertex.getTaskVertices()[subtask];
+		final AccessExecutionVertex vertex = jobVertex.getTaskVertices().get(subtask);
 		return handleRequest(vertex, params);
 	}
 

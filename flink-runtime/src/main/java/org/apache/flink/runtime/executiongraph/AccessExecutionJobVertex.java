@@ -21,6 +21,8 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import java.util.ArrayList;
+
 /**
  * Common interface for the runtime {@link ExecutionJobVertex} and {@link ArchivedExecutionJobVertex}.
  */
@@ -58,7 +60,7 @@ public interface AccessExecutionJobVertex {
 	 *
 	 * @return all execution vertices for this job vertex
 	 */
-	AccessExecutionVertex[] getTaskVertices();
+	ArrayList<AccessExecutionVertex> getTaskVertices();
 
 	/**
 	 * Returns the aggregated {@link ExecutionState} for this job vertex.

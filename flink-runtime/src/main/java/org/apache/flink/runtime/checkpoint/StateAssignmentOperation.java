@@ -195,7 +195,7 @@ public class StateAssignmentOperation {
 
 		for (int subTaskIndex = 0; subTaskIndex < newParallelism; subTaskIndex++) {
 
-			Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[subTaskIndex]
+			Execution currentExecutionAttempt = executionJobVertex.getTaskVertices().get(subTaskIndex)
 				.getCurrentExecutionAttempt();
 
 			TaskStateSnapshot taskState = new TaskStateSnapshot();

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.io.Serializable;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -84,15 +85,15 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 	 * Creates an input channel deployment descriptor for each partition.
 	 */
 	public static InputChannelDeploymentDescriptor[] fromEdges(
-			ExecutionEdge[] edges,
+			List<ExecutionEdge> edges,
 			ResourceID consumerResourceId,
 			boolean allowLazyDeployment) throws ExecutionGraphException {
 
-		final InputChannelDeploymentDescriptor[] icdd = new InputChannelDeploymentDescriptor[edges.length];
+		final InputChannelDeploymentDescriptor[] icdd = new InputChannelDeploymentDescriptor[edges.size()];
 
 		// Each edge is connected to a different result partition
-		for (int i = 0; i < edges.length; i++) {
-			final IntermediateResultPartition consumedPartition = edges[i].getSource();
+		for (int i = 0; i < edges.size(); i++) {
+			final IntermediateResultPartition consumedPartition = edges.get(i).getSource();
 			final Execution producer = consumedPartition.getProducer().getCurrentExecutionAttempt();
 
 			final ExecutionState producerState = producer.getState();

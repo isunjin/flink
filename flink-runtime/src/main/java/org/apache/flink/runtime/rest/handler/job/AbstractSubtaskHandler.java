@@ -36,6 +36,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -81,13 +82,13 @@ public abstract class AbstractSubtaskHandler<R extends ResponseBody, M extends S
 			AccessExecutionJobVertex jobVertex) throws RestHandlerException {
 
 		final Integer subtaskIndex = request.getPathParameter(SubtaskIndexPathParameter.class);
-		final AccessExecutionVertex[] executionVertices = jobVertex.getTaskVertices();
+		final ArrayList<AccessExecutionVertex> executionVertices = jobVertex.getTaskVertices();
 
-		if (subtaskIndex >= executionVertices.length || subtaskIndex < 0) {
+		if (subtaskIndex >= executionVertices.size() || subtaskIndex < 0) {
 			throw new RestHandlerException("Invalid subtask index for vertex " + jobVertex.getJobVertexId(), HttpResponseStatus.NOT_FOUND);
 		}
 
-		return handleRequest(request, executionVertices[subtaskIndex]);
+		return handleRequest(request, executionVertices.get(subtaskIndex));
 	}
 
 	/**

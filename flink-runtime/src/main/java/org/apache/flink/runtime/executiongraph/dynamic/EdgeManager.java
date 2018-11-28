@@ -6,6 +6,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 
+/***/
 public abstract class EdgeManager {
 
 	protected JobEdge jobEdge;
@@ -21,37 +22,26 @@ public abstract class EdgeManager {
 
 	/**
 	 * connect vertex to source by the given strategy
+	 * this method most likely called while a new graph was building
 	 * */
-	public ExecutionEdge[] connectSource(ExecutionVertex target, int inputNumber, int comsumeNumber) {
-
-		ExecutionEdge[] edges = this.strategy.connectSource(target, inputNumber);
-
-		// add the consumers to the source
-		// for now (until the receiver initiated handshake is in place), we need to register the
-		// edges as the execution graph
-		for (ExecutionEdge ee : edges) {
-			ee.getSource().addConsumer(ee, comsumeNumber);
-		}
-
-		target.setExecutionEdges(inputNumber, edges);
-
-		return edges;
+	public void connectSource(ExecutionVertex target) {
+		this.strategy.connectToSource(target);
 	}
 
 	/** replace current edge to two edges:
 	 * 	1) edge to vertex
 	 * 	2) edge from the intermediate data
 	 *
-	 * 							IR
-	 * 							 \		-> edgeFromIntermedicateResult
-	 * 							  \
-	 * 							  ______
-	 * 	IR						 | EJV  |
-	 *	|	->  Current Edge =>  | |	|  -> sub graph
-	 * EJV						 | IR	|
-	 * 							 --------
-	 * 							  /
-	 * 							 / 	-> edgeToVertex
+	 * 	 * 							IR
+	 * 	 * 							 \		-> edgeFromIntermedicateResult
+	 * 	 * 							  \
+	 * 	 * 							  ______
+	 * 	 * 	IR						 | EJV  |
+	 * 	 *	|	->  Current Edge =>  | |	|  -> sub graph
+	 * 	 * EJV						 | IR	|
+	 * 	 * 							 --------
+	 * 	 * 							  /
+	 * 	 * 							 / 	-> edgeToVertex
 	 * 							 EJV
 	 *
 	 * */
@@ -86,23 +76,34 @@ public abstract class EdgeManager {
 		return null;
 	}
 
-	public void onPartitionProduced(IntermediateResultPartition partition){
+	public void onPartitionReady(IntermediateResultPartition partition){
+		//TODO: this might trigger graph structure change
+		//TODO: this might also trigger Consumer parallelism change
 
 	}
 
 	public void onPartitionAdded(IntermediateResultPartition partition){
-
+		this.strategy.connectToTarget(partition);
+		//TODO: will target vertex change parallelism?
 	}
 
 	public void onPartitionRemoved(IntermediateResultPartition partition){
-
+		this.strategy.disconnectFromTarget(partition);
 	}
 
-	public void onExecutionVertexRemoved(ExecutionVertex vertex){
-
+	/**
+	 * Increase/Reduce ExecutionJobVertex parallelism will be triggered by external event
+	 * */
+	public void onExecutionVertexRemoved(ExecutionVertex target){
+		this.strategy.disconnectFromSource(target);
+		//TODO: this will always trigger partition remove
 	}
 
+	/**
+	 * Increase/Reduce ExecutionJobVertex parallelism will be triggered by external event
+	 * */
 	public void onExecutionVertexAdded(ExecutionVertex vertex){
-
+		this.strategy.connectToSource(vertex);
+		//TODO: this will always trigger partition Add
 	}
 }

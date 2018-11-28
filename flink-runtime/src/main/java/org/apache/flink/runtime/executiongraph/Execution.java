@@ -936,7 +936,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						for (IntermediateResultPartition finishedPartition
 								: getVertex().finishAllBlockingPartitions()) {
 
-							IntermediateResultPartition[] allPartitions = finishedPartition
+							List<IntermediateResultPartition> allPartitions = finishedPartition
 									.getIntermediateResult().getPartitions();
 
 							for (IntermediateResultPartition partition : allPartitions) {

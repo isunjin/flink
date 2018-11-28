@@ -100,13 +100,13 @@ public class CheckpointCoordinator {
 	private final Executor executor;
 
 	/** Tasks who need to be sent a message when a checkpoint is started */
-	private final ExecutionVertex[] tasksToTrigger;
+	private final List<ExecutionVertex> tasksToTrigger;
 
 	/** Tasks who need to acknowledge a checkpoint before it succeeds */
-	private final ExecutionVertex[] tasksToWaitFor;
+	private final List<ExecutionVertex> tasksToWaitFor;
 
 	/** Tasks who need to be sent a message when a checkpoint is confirmed */
-	private final ExecutionVertex[] tasksToCommitTo;
+	private final List<ExecutionVertex> tasksToCommitTo;
 
 	/** Map from checkpoint ID to the pending checkpoint */
 	private final Map<Long, PendingCheckpoint> pendingCheckpoints;
@@ -188,9 +188,9 @@ public class CheckpointCoordinator {
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
 			CheckpointRetentionPolicy retentionPolicy,
-			ExecutionVertex[] tasksToTrigger,
-			ExecutionVertex[] tasksToWaitFor,
-			ExecutionVertex[] tasksToCommitTo,
+			List<ExecutionVertex> tasksToTrigger,
+			List<ExecutionVertex> tasksToWaitFor,
+			List<ExecutionVertex> tasksToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			StateBackend checkpointStateBackend,
@@ -453,14 +453,14 @@ public class CheckpointCoordinator {
 
 		// check if all tasks that we need to trigger are running.
 		// if not, abort the checkpoint
-		Execution[] executions = new Execution[tasksToTrigger.length];
-		for (int i = 0; i < tasksToTrigger.length; i++) {
-			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
+		Execution[] executions = new Execution[tasksToTrigger.size()];
+		for (int i = 0; i < tasksToTrigger.size(); i++) {
+			Execution ee = tasksToTrigger.get(i).getCurrentExecutionAttempt();
 			if (ee != null && ee.getState() == ExecutionState.RUNNING) {
 				executions[i] = ee;
 			} else {
 				LOG.info("Checkpoint triggering task {} of job {} is not being executed at the moment. Aborting checkpoint.",
-						tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
+						tasksToTrigger.get(i).getTaskNameWithSubtaskIndex(),
 						job);
 				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
@@ -468,7 +468,7 @@ public class CheckpointCoordinator {
 
 		// next, check if all tasks that need to acknowledge the checkpoint are running.
 		// if not, abort the checkpoint
-		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.length);
+		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.size());
 
 		for (ExecutionVertex ev : tasksToWaitFor) {
 			Execution ee = ev.getCurrentExecutionAttempt();

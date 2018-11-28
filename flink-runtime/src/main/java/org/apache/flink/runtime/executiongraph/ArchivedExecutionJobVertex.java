@@ -22,13 +22,15 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionJobVertex.getAggregateJobVertexState;
 
 public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Serializable {
 
 	private static final long serialVersionUID = -5768187638639437957L;
-	private final ArchivedExecutionVertex[] taskVertices;
+	private final ArrayList<ArchivedExecutionVertex> taskVertices;
 
 	private final JobVertexID id;
 
@@ -41,10 +43,10 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 
 	public ArchivedExecutionJobVertex(ExecutionJobVertex jobVertex) {
-		this.taskVertices = new ArchivedExecutionVertex[jobVertex.getTaskVertices().length];
-		for (int x = 0; x < taskVertices.length; x++) {
-			taskVertices[x] = jobVertex.getTaskVertices()[x].archive();
-		}
+		this.taskVertices = jobVertex.getTaskVertices()
+			.stream()
+			.map(t->t.archive())
+			.collect(Collectors.toCollection(ArrayList::new));
 
 		archivedUserAccumulators = jobVertex.getAggregatedUserAccumulatorsStringified();
 
@@ -55,7 +57,7 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 	}
 
 	public ArchivedExecutionJobVertex(
-			ArchivedExecutionVertex[] taskVertices,
+			ArrayList<ArchivedExecutionVertex> taskVertices,
 			JobVertexID id,
 			String name,
 			int parallelism,
@@ -94,7 +96,7 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 	}
 
 	@Override
-	public ArchivedExecutionVertex[] getTaskVertices() {
+	public ArrayList<ArchivedExecutionVertex> getTaskVertices() {
 		return taskVertices;
 	}
 

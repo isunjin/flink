@@ -80,6 +80,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -484,9 +485,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
 		checkState(checkpointCoordinator == null, "checkpointing already enabled");
 
-		ExecutionVertex[] tasksToTrigger = collectExecutionVertices(verticesToTrigger);
-		ExecutionVertex[] tasksToWaitFor = collectExecutionVertices(verticesToWaitFor);
-		ExecutionVertex[] tasksToCommitTo = collectExecutionVertices(verticesToCommitTo);
+		List<ExecutionVertex> tasksToTrigger = collectExecutionVertices(verticesToTrigger);
+		List<ExecutionVertex> tasksToWaitFor = collectExecutionVertices(verticesToWaitFor);
+		List<ExecutionVertex> tasksToCommitTo = collectExecutionVertices(verticesToCommitTo);
 
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
@@ -556,7 +557,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	private ExecutionVertex[] collectExecutionVertices(List<ExecutionJobVertex> jobVertices) {
+	private List<ExecutionVertex> collectExecutionVertices(List<ExecutionJobVertex> jobVertices) {
 		if (jobVertices.size() == 1) {
 			ExecutionJobVertex jv = jobVertices.get(0);
 			if (jv.getGraph() != this) {
@@ -570,9 +571,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				if (jv.getGraph() != this) {
 					throw new IllegalArgumentException("Can only use ExecutionJobVertices of this ExecutionGraph");
 				}
-				all.addAll(Arrays.asList(jv.getTaskVertices()));
+				all.addAll(jv.getTaskVertices());
 			}
-			return all.toArray(new ExecutionVertex[all.size()]);
+			return all;
 		}
 	}
 

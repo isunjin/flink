@@ -88,7 +88,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private final Map<IntermediateResultPartitionID, IntermediateResultPartition> resultPartitions;
 
-	private final ExecutionEdge[][] inputEdges;
+	private final ArrayList<ExecutionEdge>[] inputEdges;
 
 	private final int subTaskIndex;
 
@@ -160,7 +160,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			resultPartitions.put(irp.getPartitionId(), irp);
 		}
 
-		this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
+		this.inputEdges = (ArrayList<ExecutionEdge>[])new ArrayList[jobVertex.getJobVertex().getInputs().size()];
 
 		this.priorExecutions = new EvictingBoundedList<>(maxPriorExecutionHistoryLength);
 
@@ -237,7 +237,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return this.inputEdges.length;
 	}
 
-	public ExecutionEdge[] getInputEdges(int input) {
+	public List<ExecutionEdge> getInputEdges(int input) {
 		if (input < 0 || input >= this.inputEdges.length) {
 			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, this.inputEdges.length));
 		}
@@ -330,12 +330,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	public ExecutionGraph getExecutionGraph() {
-		return this.jobVertex.getGraph();
+	public ArrayList<ExecutionEdge> getEdges(int inputNum){
+		return this.inputEdges[inputNum];
 	}
 
-	public void setExecutionEdges(int input, ExecutionEdge[] edges){
-		this.inputEdges[input] = edges;
+	public ExecutionGraph getExecutionGraph() {
+		return this.jobVertex.getGraph();
 	}
 
 	public Map<IntermediateResultPartitionID, IntermediateResultPartition> getProducedPartitions() {
@@ -409,12 +409,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			// go over all inputs
 			for (int i = 0; i < inputEdges.length; i++) {
 				inputLocations.clear();
-				ExecutionEdge[] sources = inputEdges[i];
+				List<ExecutionEdge> sources = inputEdges[i];
 				if (sources != null) {
 					// go over all input sources
-					for (int k = 0; k < sources.length; k++) {
+					for (int k = 0; k < sources.size(); k++) {
 						// look-up assigned slot of input source
-						CompletableFuture<TaskManagerLocation> locationFuture = sources[k].getSource().getProducer().getCurrentTaskManagerLocationFuture();
+						CompletableFuture<TaskManagerLocation> locationFuture = sources.get(k).getSource().getProducer().getCurrentTaskManagerLocationFuture();
 						// add input location
 						inputLocations.add(locationFuture);
 						// inputs which have too many distinct sources are not considered
@@ -694,7 +694,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 		
 		
-		for (ExecutionEdge[] edges : inputEdges) {
+		for (List<ExecutionEdge> edges : inputEdges) {
 			InputChannelDeploymentDescriptor[] partitions = InputChannelDeploymentDescriptor.fromEdges(
 				edges,
 				targetSlot.getTaskManagerLocation().getResourceID(),
@@ -703,11 +703,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			// If the produced partition has multiple consumers registered, we
 			// need to request the one matching our sub task index.
 			// TODO Refactor after removing the consumers from the intermediate result partitions
-			int numConsumerEdges = edges[0].getSource().getConsumers().get(0).size();
+			int numConsumerEdges = edges.get(0).getSource().getConsumers().get(0).size();
 
 			int queueToRequest = subTaskIndex % numConsumerEdges;
 
-			IntermediateResult consumedIntermediateResult = edges[0].getSource().getIntermediateResult();
+			IntermediateResult consumedIntermediateResult = edges.get(0).getSource().getIntermediateResult();
 			final IntermediateDataSetID resultId = consumedIntermediateResult.getId();
 			final ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
 
