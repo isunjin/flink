@@ -22,10 +22,12 @@ usage() {
   cat <<HERE
 Usage:
   build.sh --from-local-dist [--image-name <image>]
+  build.sh --for-dev
   build.sh --from-release --flink-version <x.x.x> --hadoop-version <x.x> --scala-version <x.xx> [--image-name <image>]
   build.sh --help
 
   If the --image-name flag is not used the built image name will be 'flink'.
+  If the --for-dev flag was set then build docker image and assume flink distribution folder will be mounted to /opt. 
 HERE
   exit 1
 }
@@ -54,6 +56,10 @@ key="$1"
     ;;
     --scala-version)
     SCALA_VERSION="$2"
+    shift
+    ;;
+    --for-dev)
+    FOR_DEBUG="true"
     shift
     ;;
     --help)
@@ -98,7 +104,10 @@ elif [ -n "${FROM_LOCAL}" ]; then
   FLINK_DIST="${TMPDIR}/flink.tgz"
   echo "Using flink dist: ${DIST_DIR}"
   tar -C ${DIST_DIR} -cvzf "${FLINK_DIST}" .
+elif [ -n "${FOR_DEBUG}" ]; then
 
+  docker build -f ./dev/Dockerfile -t "flink-dev" . 
+  exit 1
 else
 
   usage
