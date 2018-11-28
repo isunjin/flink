@@ -54,7 +54,7 @@ public class FlinkKubernetesOptions {
 		.required(true)
 		.hasArg(true)
 		.argName("clusterid")
-		.desc("the cluster id that will be used in namespace")
+		.desc("the cluster id that will be used for current session.")
 		.build();
 
 	private Configuration configuration;
