@@ -58,16 +58,26 @@ note that we need to set 'imagePullPolicy' to "IfNotPresent" otherwise minikube 
 ```bash
 minikube mount ~/git/isunjin/flink_1/:/flink-root/
 ```
+
+3. test yaml
+```bash
+kubectl create -f flink.yml 
+```
  
 4. set class path for debug
+
+```bash
+ln -s ~/git/isunjin/flink/flink-kubernetes/target/classes/ ./build-target/lib/classes
+
+```
 
 debug in kubernetes
 
 ```bash
 ############################################
 #test k8s-dev docker image
-docker run -it --entrypoint /bin/bash flink-k8-dev
-
+#in minikube
+docker run -it -v  /flink-root/build-target:/opt/flink -v /flink-root:/flink-root -e EXTRA_CLASSPATHS=/flink-root/flink-kubernetes/target/classes flink-dev cluster 
 #run 
 
 #attach to JM container log of JM

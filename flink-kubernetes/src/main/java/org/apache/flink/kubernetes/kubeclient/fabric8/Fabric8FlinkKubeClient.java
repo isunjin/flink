@@ -24,7 +24,7 @@ import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.KubeClient;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.Decorator;
-import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ExternalIPDecorator;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.ExternalIPDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.JobManagerPodDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.LoadBalancerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.PodInitializerDecorator;
@@ -36,6 +36,8 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watcher;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.JobManagerDebugDecorator;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.TaskManagerDebugDecorator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,13 +75,19 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 	public void initialize() {
 		this.serviceDecorators.add(new ServiceInitializerDecorator());
 		this.serviceDecorators.add(new ServicePortDecorator());
-		this.serviceDecorators.add(new LoadBalancerDecorator());
-		this.serviceDecorators.add(new ExternalIPDecorator());
 
 		this.clusterPodDecorators.add(new PodInitializerDecorator());
 		this.clusterPodDecorators.add(new JobManagerPodDecorator());
 
 		this.taskManagerPodDecorators.add(new PodInitializerDecorator());
+
+		if(this.flinkKubeOptions.getIsDebugMode()){
+			this.serviceDecorators.add(new ExternalIPDecorator());
+			this.clusterPodDecorators.add(new JobManagerDebugDecorator());
+			this.taskManagerPodDecorators.add(new TaskManagerDebugDecorator());
+		}else{
+			this.serviceDecorators.add(new LoadBalancerDecorator());
+		}
 	}
 
 	@Override
@@ -117,6 +125,10 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 	 * Extract service address.
 	 * */
 	private String extractServiceAddress(Service service) {
+		if(this.flinkKubeOptions.getIsDebugMode() && this.flinkKubeOptions.getExternalIP() != null){
+			//TODO preconditions check
+			return this.flinkKubeOptions.getExternalIP();
+		}
 		if (service.getStatus() != null
 			&& service.getStatus().getLoadBalancer() != null
 			&& service.getStatus().getLoadBalancer().getIngress() != null

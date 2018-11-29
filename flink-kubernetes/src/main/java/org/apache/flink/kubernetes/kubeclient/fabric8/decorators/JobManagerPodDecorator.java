@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,8 +51,17 @@ public class JobManagerPodDecorator extends Decorator<Pod, FlinkPod> {
 
 		resource.getMetadata().setLabels(labels);
 
+		List<String> args = Arrays.asList(
+			"cluster",
+			FlinkKubernetesOptions.IMAGE_OPTION.getLongOpt(),
+			flinkKubernetesOptions.getImageName(),
+			FlinkKubernetesOptions.CLUSTERID_OPTION.getLongOpt(),
+			flinkKubernetesOptions.getClusterId()
+		);
+
 		Container container = new ContainerBuilder()
 			.withName(flinkKubernetesOptions.getClusterId())
+			.withArgs(args)
 			.withImage(flinkKubernetesOptions.getImageName())
 			.withImagePullPolicy("IfNotPresent")
 			.withPorts(Arrays.asList(

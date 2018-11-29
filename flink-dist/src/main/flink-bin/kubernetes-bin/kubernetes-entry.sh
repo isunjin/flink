@@ -33,7 +33,7 @@ if [ "$FLINK_IDENT_STRING" = "" ]; then
 fi
 
 CC_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPATHS`
-
+CC_CLASSPATH="$FLINK_HOME/libs
 log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-kubernetes-appmaster-${HOSTNAME}.log"
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-console.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-console.xml"
 

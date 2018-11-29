@@ -65,6 +65,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	public KubernetesClusterDescriptor(@Nonnull FlinkKubernetesOptions options, @Nonnull KubeClient client) {
 		this.options = options;
 		this.client = client;
+		this.client.initialize();
 	}
 
 	private String generateClusterId(){

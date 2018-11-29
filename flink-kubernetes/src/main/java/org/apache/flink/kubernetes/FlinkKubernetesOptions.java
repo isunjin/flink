@@ -52,7 +52,7 @@ public class FlinkKubernetesOptions {
 
 	public static final Option IMAGE_OPTION = Option.builder("i")
 		.longOpt("image")
-		.required(true)
+		.required(false)
 		.hasArg(true)
 		.argName("image-name")
 		.desc("the docker image name.")
@@ -60,7 +60,7 @@ public class FlinkKubernetesOptions {
 
 	public static final Option CLUSTERID_OPTION = Option.builder("cid")
 		.longOpt("clusterid")
-		.required(true)
+		.required(false)
 		.hasArg(true)
 		.argName("clusterid")
 		.desc("the cluster id that will be used in namespace")
@@ -167,7 +167,9 @@ public class FlinkKubernetesOptions {
 		Configuration configuration = GlobalConfiguration
 			.loadConfigurationWithDynamicProperties(ConfigurationUtils.createConfiguration(dynamicProperties));
 
-		configuration.setString(RestOptions.ADDRESS, hostname);
+		if(hostname != null){
+			configuration.setString(RestOptions.ADDRESS, hostname);
+		}
 
 		if (restPort == -1) {
 			restPort = RestOptions.PORT.defaultValue();

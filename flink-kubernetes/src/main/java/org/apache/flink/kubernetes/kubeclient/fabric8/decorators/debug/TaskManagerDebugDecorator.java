@@ -16,35 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.kubeclient.fabric8.decorators;
+package org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
-import org.apache.flink.kubernetes.kubeclient.fabric8.FlinkService;
+import org.apache.flink.kubernetes.kubeclient.fabric8.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.Decorator;
 import org.apache.flink.util.Preconditions;
 
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceSpec;
+import java.util.List;
 
-import java.util.Arrays;
-
-/**
- * This decorator is for debug purpose.
- * */
-public class ExternalIPDecorator extends Decorator<Service, FlinkService> {
-
-	protected Boolean isEnabled(FlinkKubernetesOptions flinkKubernetesOptions) {
-		return flinkKubernetesOptions.getIsDebugMode();
-	}
+public class TaskManagerDebugDecorator extends Decorator<Pod, FlinkPod> {
 
 	@Override
-	protected Service doDecorate(Service resource, FlinkKubernetesOptions flinkKubernetesOptions) {
+	protected Pod doDecorate(Pod resource, FlinkKubernetesOptions flinkKubernetesOptions) {
 
-		String externalIP = flinkKubernetesOptions.getExternalIP();
-		Preconditions.checkState(externalIP != null);
+		Preconditions.checkArgument(flinkKubernetesOptions != null && flinkKubernetesOptions.getIsDebugMode());
+		Preconditions.checkArgument(resource.getSpec() != null && resource.getSpec().getContainers() != null);
 
-		ServiceSpec spec = resource.getSpec() != null ? resource.getSpec() : new ServiceSpec();
-		spec.setExternalIPs(Arrays.asList(externalIP));
-		resource.setSpec(spec);
+		List<String> args = resource.getSpec().getContainers().get(0).getArgs();
+
+		args.add("-D" + FlinkKubernetesOptions.DEBUG_MODE + "=true");
 
 		return resource;
 	}
