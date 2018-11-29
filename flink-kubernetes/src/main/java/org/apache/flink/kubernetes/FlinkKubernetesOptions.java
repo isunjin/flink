@@ -63,7 +63,7 @@ public class FlinkKubernetesOptions {
 		.required(false)
 		.hasArg(true)
 		.argName("clusterid")
-		.desc("the cluster id that will be used in namespace")
+		.desc("the cluster id that will be used for current session.")
 		.build();
 
 	public static final Option KUBERNETES_CONFIG_FILE_OPTION = Option.builder("kc")
