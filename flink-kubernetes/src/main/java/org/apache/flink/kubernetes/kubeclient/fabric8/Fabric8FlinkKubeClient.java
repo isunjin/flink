@@ -27,6 +27,7 @@ import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.Decorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.JobManagerPodDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.LoadBalancerDecorator;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.OwnerReferenceDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.PodInitializerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServiceInitializerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServicePortDecorator;
@@ -79,8 +80,10 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 
 		this.clusterPodDecorators.add(new PodInitializerDecorator());
 		this.clusterPodDecorators.add(new JobManagerPodDecorator());
+		this.clusterPodDecorators.add(new OwnerReferenceDecorator());
 
 		this.taskManagerPodDecorators.add(new PodInitializerDecorator());
+		this.taskManagerPodDecorators.add(new OwnerReferenceDecorator());
 
 		if(this.flinkKubeOptions.getIsDebugMode()){
 			this.serviceDecorators.add(new ExternalIPDecorator());
@@ -160,6 +163,9 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 		return CompletableFuture.supplyAsync(() -> {
 			Service createdService = watcher.await(1, TimeUnit.MINUTES);
 			String address = extractServiceAddress(createdService);
+			String uuid = createdService.getMetadata().getUid();
+			flinkKubeOptions.setServiceUUID(uuid);
+
 			int uiPort = this.flinkKubeOptions.getServicePort(RestOptions.PORT);
 			return new Endpoint(address, uiPort);
 		});

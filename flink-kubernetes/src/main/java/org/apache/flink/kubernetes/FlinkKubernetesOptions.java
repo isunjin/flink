@@ -98,10 +98,20 @@ public class FlinkKubernetesOptions {
 
 	private String kubeConfigFileName = null;
 
+	private String serviceUUID;
+
 	public FlinkKubernetesOptions(Configuration configuration, String clusterId) {
 		Preconditions.checkArgument(configuration != null);
 		this.configuration = configuration;
 		this.clusterId = clusterId;
+	}
+
+	public String getServiceUUID() {
+		return serviceUUID;
+	}
+
+	public void setServiceUUID(String serviceUUID) {
+		this.serviceUUID = serviceUUID;
 	}
 
 	public String getClusterId() {
