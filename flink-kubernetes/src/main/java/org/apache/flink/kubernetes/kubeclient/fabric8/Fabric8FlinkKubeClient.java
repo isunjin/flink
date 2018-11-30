@@ -18,26 +18,27 @@
 
 package org.apache.flink.kubernetes.kubeclient.fabric8;
 
+
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.KubeClient;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.Decorator;
-import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.ExternalIPDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.JobManagerPodDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.LoadBalancerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.PodInitializerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServiceInitializerDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.ServicePortDecorator;
 import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.TaskManagerDecorator;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.ExternalIPDecorator;
+import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.PodDebugDecorator;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watcher;
-import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.JobManagerDebugDecorator;
-import org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug.TaskManagerDebugDecorator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,8 +84,8 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 
 		if(this.flinkKubeOptions.getIsDebugMode()){
 			this.serviceDecorators.add(new ExternalIPDecorator());
-			this.clusterPodDecorators.add(new JobManagerDebugDecorator());
-			this.taskManagerPodDecorators.add(new TaskManagerDebugDecorator());
+			this.clusterPodDecorators.add(new PodDebugDecorator());
+			this.taskManagerPodDecorators.add(new PodDebugDecorator());
 		}else{
 			this.serviceDecorators.add(new LoadBalancerDecorator());
 		}

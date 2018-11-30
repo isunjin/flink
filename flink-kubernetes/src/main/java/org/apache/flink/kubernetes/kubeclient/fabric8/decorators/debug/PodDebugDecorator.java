@@ -37,7 +37,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JobManagerDebugDecorator extends Decorator<Pod, FlinkPod> {
+public class PodDebugDecorator extends Decorator<Pod, FlinkPod> {
 
 	public static final String FLINK_DIST_VOLUME_NAME = "flink-dist-volume";
 	public static final String FLINK_PROJECT_VOLUME_NAME = "flink-root-volume";
