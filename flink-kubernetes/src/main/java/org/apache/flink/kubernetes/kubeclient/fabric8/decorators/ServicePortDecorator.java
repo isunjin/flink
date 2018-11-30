@@ -63,6 +63,8 @@ public class ServicePortDecorator extends Decorator<Service, FlinkService> {
 			getServicePort(getPortName(BlobServerOptions.PORT.key()), 6124),
 			getServicePort(getPortName(QueryableStateOptions.SERVER_PORT_RANGE.key()), 6125)));
 
+		spec.setSelector(resource.getMetadata().getLabels());
+
 		resource.setSpec(spec);
 
 		return resource;

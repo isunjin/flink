@@ -19,6 +19,8 @@
 package org.apache.flink.kubernetes.kubeclient.fabric8.decorators.debug;
 
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.HostPathVolumeSource;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
@@ -51,12 +53,12 @@ public class JobManagerDebugDecorator extends Decorator<Pod, FlinkPod> {
 		Container container = spec.getContainers().get(0);
 		List<String> args = container.getArgs();
 
-		args.add("-D" + FlinkKubernetesOptions.DEBUG_MODE + "=true");
+		args.add("-D" + FlinkKubernetesOptions.DEBUG_MODE.key() + "=true");
 
 		Volume flinkProjectVolume = new VolumeBuilder()
 			.withName(FLINK_DIST_VOLUME_NAME)
 			.withHostPath(new HostPathVolumeSource(
-				String.format("%s/build-target/", FLINK_PROJECT_VOLUME_NAME)
+				String.format("%sbuild-target/", FLINK_PROJECT_VOLUME_PATH)
 				, null))
 			.build();
 
@@ -80,13 +82,24 @@ public class JobManagerDebugDecorator extends Decorator<Pod, FlinkPod> {
 		List<VolumeMount> mounts = container.getVolumeMounts();
 		mounts.add(new VolumeMountBuilder()
 			.withName(FLINK_DIST_VOLUME_NAME)
-			.withMountPath("/opt")
+			.withMountPath("/opt/flink")
 			.build());
 
 		mounts.add(new VolumeMountBuilder()
 			.withName(FLINK_PROJECT_VOLUME_NAME)
 			.withMountPath("/flink_root")
 			.build());
+
+		if(container.getEnv() == null){
+			container.setEnv(new ArrayList<>());
+		}
+
+		List<EnvVar> envs = container.getEnv();
+
+		envs.add(new EnvVarBuilder()
+		.withName("EXTRA_CLASSPATHS")
+		.withValue("/flink-root/flink-kubernetes/target/classes")
+		.build());
 
 		return resource;
 	}
