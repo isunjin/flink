@@ -71,6 +71,10 @@ ln -s ~/git/isunjin/flink/flink-kubernetes/target/classes/ ./build-target/lib/cl
 
 ```
 
+to view, netstat -nr
+
+
+
 debug in kubernetes
 
 ```bash
