@@ -63,6 +63,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
@@ -854,7 +855,7 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
-	private JobGraph createDataSourceJobGraph() {
+	private JobGraph createDataSourceJobGraph() throws Exception {
 		final TextInputFormat inputFormat = new TextInputFormat(new Path("."));
 		final InputFormatVertex producer = new InputFormatVertex("Producer");
 		new TaskConfig(producer.getConfiguration()).setStubWrapper(new UserCodeObjectWrapper<InputFormat<?, ?>>(inputFormat));
@@ -867,6 +868,10 @@ public class JobMasterTest extends TestLogger {
 		final JobGraph jobGraph = new JobGraph(producer, consumer);
 		jobGraph.setAllowQueuedScheduling(true);
 
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
+		jobGraph.setExecutionConfig(executionConfig);
+
 		return jobGraph;
 	}
 
@@ -878,6 +883,8 @@ public class JobMasterTest extends TestLogger {
 	public void testRequestNextInputSplitWithDataSourceFailover() throws Exception {
 
 		final JobGraph dataSourceJobGraph = createDataSourceJobGraph();
+		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
+			FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
 		final JobMaster jobMaster = createJobMaster(
 			configuration,
 			dataSourceJobGraph,
@@ -940,9 +947,8 @@ public class JobMasterTest extends TestLogger {
 			Execution execution = executionGraph.getRegisteredExecutions().get(tdd.getExecutionAttemptId());
 			ExecutionVertex executionVertex = execution.getVertex();
 
-			long version = execution.getGlobalModVersion();
-			gateway.updateTaskExecutionState(new TaskExecutionState(dataSourceJobGraph.getJobID(), tdd.getExecutionAttemptId(), ExecutionState.FINISHED)).get();
-			Execution newExecution = executionVertex.resetForNewExecution(System.currentTimeMillis(), version);
+			gateway.updateTaskExecutionState(new TaskExecutionState(dataSourceJobGraph.getJobID(), tdd.getExecutionAttemptId(), ExecutionState.FAILED)).get();
+			Execution newExecution = executionVertex.getCurrentExecutionAttempt();
 
 			//get the new split
 			SerializedInputSplit split2 = gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get();
